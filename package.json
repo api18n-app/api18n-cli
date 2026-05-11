@@ -1,6 +1,6 @@
 {
   "name": "@api18n/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Command-line interface for the api18n translation manager. Pull translations to local JSON files and push edits back as reviewable proposals.",
   "license": "MIT",
   "author": "api18n",
