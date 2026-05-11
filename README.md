@@ -1,10 +1,8 @@
 # @api18n/cli
 
 Command-line interface for the [api18n](https://www.api18n.com) translation
-manager. Pull translation keys from the dashboard down to local JSON files.
-
-> **Status**: **M1 / read-only.** Push back as proposals (with dashboard
-> approval) lands in M2.
+manager. Pull translation keys from the dashboard to local JSON files, and
+push edits back as reviewable proposals.
 
 ## Install
 
@@ -47,12 +45,10 @@ export default defineConfig({
 
 ## Authentication
 
-Generate a Personal Access Token at **Dashboard → Settings → API Keys**.
-Tokens look like `a18n_live_…` and are stored at
-`~/.api18n/credentials.json` with `0600` permissions.
+`api18n login` walks you through generating a Personal Access Token at
+**Dashboard → Settings → API Keys** and saves it for future commands.
 
-Override per-command with `--token`, or set `API18N_TOKEN` in the
-environment for CI.
+For CI, set `API18N_TOKEN` in the environment instead — no `login` needed.
 
 ## Commands
 
@@ -65,6 +61,12 @@ environment for CI.
 | `api18n pull` | Fetch translations and write local files |
 | `api18n pull --dry-run` | Show what would change without writing |
 | `api18n pull --locale en pt` | Only pull specific locales |
+| `api18n push` | Submit local changes as a proposal for dashboard approval |
+| `api18n push -m "..."` | Attach a summary to the proposal |
+| `api18n push --dry-run` | Show the diff without submitting |
+| `api18n status` | Show pending proposals and local-vs-server drift |
+| `api18n proposals list` | List recent proposals |
+| `api18n proposals show <id>` | Print a single proposal's full diff |
 
 ## File format
 
@@ -88,11 +90,3 @@ Pulled files are JSON, one per locale, nested by dot-segments of the key:
 This matches the conventions used by `next-intl`, `i18next`, and most
 JavaScript i18n libraries. Empty (`null`) translations are omitted from
 the output so missing keys don't show up as JSON `null`s.
-
-## Development
-
-```bash
-bun install
-bun run build
-node bin/api18n.mjs --help
-```
