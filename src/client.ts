@@ -112,4 +112,11 @@ export class Api18nClient {
     );
     return data;
   }
+
+  async getProposal(id: string): Promise<ProposalSummary & { diff: TranslationDiff }> {
+    const { data } = await this.request<{
+      data: ProposalSummary & { diff: TranslationDiff };
+    }>(`/api/cli/proposals/${encodeURIComponent(id)}`);
+    return data;
+  }
 }

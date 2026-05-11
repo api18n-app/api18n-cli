@@ -7,6 +7,10 @@ import { runWhoami } from './commands/whoami.js';
 import { runPull } from './commands/pull.js';
 import { runPush } from './commands/push.js';
 import { runStatus } from './commands/status.js';
+import {
+  runProposalsList,
+  runProposalsShow,
+} from './commands/proposals.js';
 
 const program = new Command();
 
@@ -93,6 +97,35 @@ program
   .action(async () => {
     try {
       await runStatus();
+    } catch (err) {
+      fail(err);
+    }
+  });
+
+const proposals = program
+  .command('proposals')
+  .description('Inspect translation proposals.');
+
+proposals
+  .command('list')
+  .description('List recent proposals.')
+  .option('--status <status>', 'Filter by pending | approved | rejected | superseded')
+  .option('--limit <n>', 'Maximum rows to show', (v) => Number(v))
+  .action(async (opts: { status?: string; limit?: number }) => {
+    try {
+      await runProposalsList(opts);
+    } catch (err) {
+      fail(err);
+    }
+  });
+
+proposals
+  .command('show <id>')
+  .description('Print the full diff of a single proposal.')
+  .option('--json', 'Output raw JSON instead of formatted text')
+  .action(async (id: string, opts: { json?: boolean }) => {
+    try {
+      await runProposalsShow(id, opts);
     } catch (err) {
       fail(err);
     }

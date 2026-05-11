@@ -24,6 +24,8 @@
     "build": "tsup src/index.ts --format esm --target node18 --clean --out-dir dist --shims --dts",
     "dev": "tsup src/index.ts --format esm --target node18 --watch --out-dir dist --shims --dts",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "start": "node bin/api18n.mjs"
   },
   "dependencies": {
@@ -37,7 +39,8 @@
     "@types/node": "^22.10.0",
     "@types/prompts": "^2.4.9",
     "tsup": "^8.3.5",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
   },
   "engines": {
     "node": ">=18.0.0"
