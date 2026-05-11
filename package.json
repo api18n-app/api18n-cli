@@ -4,6 +4,14 @@
   "description": "Command-line interface for the api18n translation manager. Pull translations to local JSON files and (later) push edits back as reviewable proposals.",
   "license": "MIT",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "bin": {
     "api18n": "./bin/api18n.mjs"
   },
@@ -13,8 +21,8 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --target node18 --clean --out-dir dist --shims",
-    "dev": "tsup src/index.ts --format esm --target node18 --watch --out-dir dist --shims",
+    "build": "tsup src/index.ts --format esm --target node18 --clean --out-dir dist --shims --dts",
+    "dev": "tsup src/index.ts --format esm --target node18 --watch --out-dir dist --shims --dts",
     "typecheck": "tsc --noEmit",
     "start": "node bin/api18n.mjs"
   },
