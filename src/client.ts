@@ -1,4 +1,10 @@
-import type { CliMeResponse, TranslationDataset } from './types.js';
+import type {
+  CliMeResponse,
+  ProposalStatus,
+  ProposalSummary,
+  TranslationDataset,
+  TranslationDiff,
+} from './types.js';
 
 export class ApiError extends Error {
   constructor(
@@ -31,11 +37,24 @@ export class Api18nClient {
     return headers;
   }
 
-  private async request<T>(path: string): Promise<T> {
+  private async request<T>(
+    path: string,
+    init?: { method?: string; body?: unknown },
+  ): Promise<T> {
     const url = `${this.opts.baseUrl}${path}`;
+    const headers = this.headers();
+    let bodyText: string | undefined;
+    if (init?.body !== undefined) {
+      headers['Content-Type'] = 'application/json';
+      bodyText = JSON.stringify(init.body);
+    }
     let response: Response;
     try {
-      response = await fetch(url, { headers: this.headers() });
+      response = await fetch(url, {
+        method: init?.method ?? 'GET',
+        headers,
+        body: bodyText,
+      });
     } catch (err) {
       throw new ApiError(
         0,
@@ -70,5 +89,27 @@ export class Api18nClient {
 
   dataset(): Promise<TranslationDataset> {
     return this.request<TranslationDataset>('/api/cli/dataset');
+  }
+
+  async listProposals(status?: ProposalStatus): Promise<ProposalSummary[]> {
+    const q = status ? `?status=${encodeURIComponent(status)}` : '';
+    const { data } = await this.request<{ data: ProposalSummary[] }>(
+      `/api/cli/proposals${q}`,
+    );
+    return data;
+  }
+
+  async createProposal(input: {
+    summary?: string | null;
+    diff: TranslationDiff;
+  }): Promise<ProposalSummary> {
+    const { data } = await this.request<{ data: ProposalSummary }>(
+      '/api/cli/proposals',
+      {
+        method: 'POST',
+        body: { source: 'cli', ...input },
+      },
+    );
+    return data;
   }
 }

@@ -5,6 +5,8 @@ import { runLogin } from './commands/login.js';
 import { runLogout } from './commands/logout.js';
 import { runWhoami } from './commands/whoami.js';
 import { runPull } from './commands/pull.js';
+import { runPush } from './commands/push.js';
+import { runStatus } from './commands/status.js';
 
 const program = new Command();
 
@@ -67,6 +69,30 @@ program
   .action(async (opts: { dryRun?: boolean; locale?: string[] }) => {
     try {
       await runPull({ dryRun: opts.dryRun, locale: opts.locale });
+    } catch (err) {
+      fail(err);
+    }
+  });
+
+program
+  .command('push')
+  .description('Submit local changes as a proposal for dashboard approval.')
+  .option('--dry-run', 'Show what would change without submitting')
+  .option('-m, --message <text>', 'Optional summary shown in the dashboard review card')
+  .action(async (opts: { dryRun?: boolean; message?: string }) => {
+    try {
+      await runPush({ dryRun: opts.dryRun, message: opts.message });
+    } catch (err) {
+      fail(err);
+    }
+  });
+
+program
+  .command('status')
+  .description('Show pending proposals and local-vs-server drift.')
+  .action(async () => {
+    try {
+      await runStatus();
     } catch (err) {
       fail(err);
     }
