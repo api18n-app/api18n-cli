@@ -34,7 +34,7 @@
     }
   },
   "bin": {
-    "api18n": "./bin/api18n.mjs"
+    "api18n": "bin/api18n.mjs"
   },
   "files": [
     "bin",
