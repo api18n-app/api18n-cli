@@ -7,6 +7,7 @@ import { runWhoami } from './commands/whoami.js';
 import { runPull } from './commands/pull.js';
 import { runPush } from './commands/push.js';
 import { runStatus } from './commands/status.js';
+import { runTypes } from './commands/types.js';
 import {
   runProposalsList,
   runProposalsShow,
@@ -97,6 +98,17 @@ program
   .action(async () => {
     try {
       await runStatus();
+    } catch (err) {
+      fail(err);
+    }
+  });
+
+program
+  .command('types')
+  .description('Regenerate messages.d.ts for the api18n runtime SDK.')
+  .action(async () => {
+    try {
+      await runTypes();
     } catch (err) {
       fail(err);
     }

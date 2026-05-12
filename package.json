@@ -52,6 +52,7 @@
     "start": "node bin/api18n.mjs"
   },
   "dependencies": {
+    "@formatjs/icu-messageformat-parser": "^2.7.8",
     "bundle-require": "^5.0.0",
     "commander": "^12.1.0",
     "esbuild": "^0.24.0",

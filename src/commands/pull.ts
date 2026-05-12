@@ -10,6 +10,7 @@ import {
   unflatten,
   writeJsonFile,
 } from '../files.js';
+import { relativeOut, writeTypes } from '../typegen-runner.js';
 import type { TranslationDataset, TranslationRow } from '../types.js';
 
 export interface PullOptions {
@@ -120,6 +121,21 @@ export async function runPull(options: PullOptions = {}): Promise<void> {
         `✓ Wrote ${totalChanged} file${totalChanged === 1 ? '' : 's'}.`
       )
     );
+  }
+
+  if (config.typegen.enabled && !options.dryRun) {
+    try {
+      const result = writeTypes(config, dataset);
+      console.log(
+        kleur.green(
+          `✓ Wrote types for ${result.keyCount} key${result.keyCount === 1 ? '' : 's'} (${result.baseLocale}) → ${relativeOut(config)}`,
+        ),
+      );
+    } catch (err) {
+      console.error(
+        kleur.yellow(`⚠ Skipped typegen: ${err instanceof Error ? err.message : String(err)}`),
+      );
+    }
   }
 }
 

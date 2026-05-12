@@ -4,6 +4,14 @@ import { bundleRequire } from 'bundle-require';
 
 const DEFAULT_BASE_URL = 'https://www.api18n.com';
 const DEFAULT_LOCALES_PATTERN = 'messages/{locale}.json';
+const DEFAULT_TYPEGEN_OUT = 'messages/messages.d.ts';
+
+export interface TypegenConfig {
+  /** Path (relative to config dir) to write the generated .d.ts. */
+  out?: string;
+  /** Locale code used as the source of truth for arg-type inference. */
+  baseLocale?: string;
+}
 
 export interface UserConfig {
   /**
@@ -21,6 +29,11 @@ export interface UserConfig {
   baseUrl?: string;
   /** Pin to a specific company; required if your user belongs to several. */
   companyId?: string;
+  /**
+   * Type generation for the `api18n` runtime SDK. Set to `false` to disable.
+   * Defaults to writing `messages/messages.d.ts` from the base locale.
+   */
+  typegen?: boolean | TypegenConfig;
 }
 
 /**
@@ -30,9 +43,18 @@ export function defineConfig(config: UserConfig): UserConfig {
   return config;
 }
 
-export interface ResolvedConfig extends Required<Omit<UserConfig, 'include' | 'companyId'>> {
+export interface ResolvedTypegenConfig {
+  enabled: boolean;
+  out: string;
+  baseLocale: string | null;
+}
+
+export interface ResolvedConfig {
+  locales: string;
+  baseUrl: string;
   include?: string[];
   companyId?: string;
+  typegen: ResolvedTypegenConfig;
   /** Absolute path to the directory containing api18n.config.ts. */
   rootDir: string;
 }
@@ -66,8 +88,21 @@ export async function loadConfig(cwd: string): Promise<ResolvedConfig> {
     baseUrl: user.baseUrl ?? DEFAULT_BASE_URL,
     include: user.include,
     companyId: user.companyId,
+    typegen: resolveTypegen(user.typegen),
     rootDir: dirname(path),
   };
 }
 
-export { DEFAULT_BASE_URL, DEFAULT_LOCALES_PATTERN };
+function resolveTypegen(value: UserConfig['typegen']): ResolvedTypegenConfig {
+  if (value === false) {
+    return { enabled: false, out: DEFAULT_TYPEGEN_OUT, baseLocale: null };
+  }
+  const obj = typeof value === 'object' && value !== null ? value : {};
+  return {
+    enabled: true,
+    out: obj.out ?? DEFAULT_TYPEGEN_OUT,
+    baseLocale: obj.baseLocale ?? null,
+  };
+}
+
+export { DEFAULT_BASE_URL, DEFAULT_LOCALES_PATTERN, DEFAULT_TYPEGEN_OUT };
