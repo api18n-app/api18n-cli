@@ -70,8 +70,8 @@ describe('renderMessagesDts', () => {
     const out = renderMessagesDts([
       { key: 'hello', raw: 'Hello {name}', args: [{ name: 'name', tsType: 'string | number' }] },
     ]);
-    expect(out).toContain("import 'api18n';");
-    expect(out).toContain("declare module 'api18n' {");
+    expect(out).toContain("import '@api18n/react';");
+    expect(out).toContain("declare module '@api18n/react' {");
     expect(out).toContain('interface Messages {');
     expect(out).toContain("hello: { __raw: 'Hello {name}'; name: string | number };");
   });
