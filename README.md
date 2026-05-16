@@ -1,7 +1,8 @@
 # @api18n/cli
 
 Command-line interface for the [api18n](https://www.api18n.com) translation
-manager. Pull translation keys from the dashboard to local JSON files, and
+manager. Pull translation keys from the dashboard
+([https://www.api18n.com](https://www.api18n.com)) to local JSON files, and
 push edits back as reviewable proposals.
 
 ## Install
@@ -46,7 +47,9 @@ export default defineConfig({
 ## Authentication
 
 `api18n login` walks you through generating a Personal Access Token at
-**Dashboard → Settings → API Keys** and saves it for future commands.
+**Dashboard → Settings → API Keys**
+([https://www.api18n.com/dashboard/settings/api-keys](https://www.api18n.com/dashboard/settings/api-keys))
+and saves it for future commands.
 
 For CI, set `API18N_TOKEN` in the environment instead — no `login` needed.
 
@@ -61,7 +64,7 @@ For CI, set `API18N_TOKEN` in the environment instead — no `login` needed.
 | `api18n pull` | Fetch translations and write local files |
 | `api18n pull --dry-run` | Show what would change without writing |
 | `api18n pull --locale en pt` | Only pull specific locales |
-| `api18n push` | Submit local changes as a proposal for dashboard approval |
+| `api18n push` | Submit local changes as a proposal for dashboard approval ([https://www.api18n.com/dashboard/translation](https://www.api18n.com/dashboard/translation)) |
 | `api18n push -m "..."` | Attach a summary to the proposal |
 | `api18n push --dry-run` | Show the diff without submitting |
 | `api18n status` | Show pending proposals and local-vs-server drift |
