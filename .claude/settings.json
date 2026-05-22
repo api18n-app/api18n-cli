@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/eduardo/dev/api18n/backend/src/plugins/**)",
+      "Read(//home/eduardo/dev/api18n/backend/src/db/schema/**)",
+      "Bash(cd /home/eduardo/dev/api18n && find . -type d \\\\\\( -name node_modules -o -name .next -o -name .git \\\\\\) -prune -o -type d -path '*cli*' -print 2>/dev/null | grep -iE 'api|route|cli' | head -40)",
+      "Read(//home/eduardo/dev/api18n/**)"
+    ]
+  }
+}

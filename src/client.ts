@@ -4,22 +4,22 @@ import type {
   ProposalSummary,
   TranslationDataset,
   TranslationDiff,
-} from './types.js';
+} from "./types.js";
 
 export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
-    public body?: unknown
+    public body?: unknown,
   ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }
 
 export interface ClientOptions {
   baseUrl: string;
-  token: string;
+  apiKey: string;
   companyId?: string;
 }
 
@@ -28,11 +28,11 @@ export class Api18nClient {
 
   private headers(): Record<string, string> {
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${this.opts.token}`,
-      Accept: 'application/json',
+      "api-key": `${this.opts.apiKey}`,
+      Accept: "application/json",
     };
     if (this.opts.companyId) {
-      headers['X-Company-Id'] = this.opts.companyId;
+      headers["X-Company-Id"] = this.opts.companyId;
     }
     return headers;
   }
@@ -45,20 +45,20 @@ export class Api18nClient {
     const headers = this.headers();
     let bodyText: string | undefined;
     if (init?.body !== undefined) {
-      headers['Content-Type'] = 'application/json';
+      headers["Content-Type"] = "application/json";
       bodyText = JSON.stringify(init.body);
     }
     let response: Response;
     try {
       response = await fetch(url, {
-        method: init?.method ?? 'GET',
+        method: init?.method ?? "GET",
         headers,
         body: bodyText,
       });
     } catch (err) {
       throw new ApiError(
         0,
-        `Couldn't reach ${this.opts.baseUrl}: ${err instanceof Error ? err.message : String(err)}`
+        `Couldn't reach ${this.opts.baseUrl}: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
 
@@ -74,7 +74,10 @@ export class Api18nClient {
 
     if (!response.ok) {
       const message =
-        typeof body === 'object' && body !== null && 'error' in body && typeof (body as { error: unknown }).error === 'string'
+        typeof body === "object" &&
+        body !== null &&
+        "error" in body &&
+        typeof (body as { error: unknown }).error === "string"
           ? (body as { error: string }).error
           : response.statusText || `Request failed (${response.status})`;
       throw new ApiError(response.status, message, body);
@@ -84,15 +87,15 @@ export class Api18nClient {
   }
 
   me(): Promise<CliMeResponse> {
-    return this.request<CliMeResponse>('/api/cli/me');
+    return this.request<CliMeResponse>("/cli/me");
   }
 
   dataset(): Promise<TranslationDataset> {
-    return this.request<TranslationDataset>('/api/cli/dataset');
+    return this.request<TranslationDataset>("/api/cli/dataset");
   }
 
   async listProposals(status?: ProposalStatus): Promise<ProposalSummary[]> {
-    const q = status ? `?status=${encodeURIComponent(status)}` : '';
+    const q = status ? `?status=${encodeURIComponent(status)}` : "";
     const { data } = await this.request<{ data: ProposalSummary[] }>(
       `/api/cli/proposals${q}`,
     );
@@ -104,16 +107,18 @@ export class Api18nClient {
     diff: TranslationDiff;
   }): Promise<ProposalSummary> {
     const { data } = await this.request<{ data: ProposalSummary }>(
-      '/api/cli/proposals',
+      "/api/cli/proposals",
       {
-        method: 'POST',
-        body: { source: 'cli', ...input },
+        method: "POST",
+        body: { source: "cli", ...input },
       },
     );
     return data;
   }
 
-  async getProposal(id: string): Promise<ProposalSummary & { diff: TranslationDiff }> {
+  async getProposal(
+    id: string,
+  ): Promise<ProposalSummary & { diff: TranslationDiff }> {
     const { data } = await this.request<{
       data: ProposalSummary & { diff: TranslationDiff };
     }>(`/api/cli/proposals/${encodeURIComponent(id)}`);
