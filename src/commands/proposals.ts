@@ -2,6 +2,7 @@ import kleur from "kleur";
 import { Api18nClient, ApiError } from "../client.js";
 import { BACKEND_URL, loadConfig } from "../config.js";
 import { resolveToken } from "../credentials.js";
+import { withSpinner } from "../spinner.js";
 import type { ProposalStatus, ProposalSummary } from "../types.js";
 
 const STATUSES: ProposalStatus[] = [
@@ -50,7 +51,10 @@ export async function runProposalsList(
   }
   let proposals: ProposalSummary[];
   try {
-    proposals = await client.listProposals(status);
+    proposals = await withSpinner(
+      status ? `Loading ${status} proposals…` : "Loading proposals…",
+      () => client.listProposals(status),
+    );
   } catch (err) {
     handleApiError(err);
   }
@@ -96,7 +100,10 @@ export async function runProposalsShow(
   const client = await buildClient();
   let proposal;
   try {
-    proposal = await client.getProposal(id);
+    proposal = await withSpinner(
+      `Loading proposal ${id.slice(0, 8)}…`,
+      () => client.getProposal(id),
+    );
   } catch (err) {
     handleApiError(err);
   }

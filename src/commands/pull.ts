@@ -10,6 +10,7 @@ import {
   unflatten,
   writeJsonFile,
 } from '../files.js';
+import { withSpinner } from '../spinner.js';
 import { relativeOut, writeTypes } from '../typegen-runner.js';
 import type { TranslationDataset, TranslationRow } from '../types.js';
 
@@ -34,7 +35,7 @@ export async function runPull(options: PullOptions = {}): Promise<void> {
 
   let dataset: TranslationDataset;
   try {
-    dataset = await client.dataset();
+    dataset = await withSpinner('Fetching translations…', () => client.dataset());
   } catch (err) {
     if (err instanceof ApiError) {
       console.error(kleur.red(`Couldn't fetch dataset (${err.status}): ${err.message}`));

@@ -1,6 +1,7 @@
 import kleur from 'kleur';
 import { Api18nClient, ApiError } from '../client.js';
 import { BACKEND_URL, DASHBOARD_URL, loadConfig } from '../config.js';
+import { withSpinner } from '../spinner.js';
 import { resolveToken } from '../credentials.js';
 import { computeTranslationDiff } from '../diff.js';
 import {
@@ -30,7 +31,7 @@ export async function runPush(options: PushOptions = {}): Promise<void> {
 
   let server: TranslationDataset;
   try {
-    server = await client.dataset();
+    server = await withSpinner('Fetching translations…', () => client.dataset());
   } catch (err) {
     if (err instanceof ApiError) {
       console.error(kleur.red(`Couldn't fetch server dataset (${err.status}): ${err.message}`));
@@ -115,10 +116,12 @@ export async function runPush(options: PushOptions = {}): Promise<void> {
 
   let proposal;
   try {
-    proposal = await client.createProposal({
-      summary: options.message ?? null,
-      diff,
-    });
+    proposal = await withSpinner('Submitting proposal…', () =>
+      client.createProposal({
+        summary: options.message ?? null,
+        diff,
+      }),
+    );
   } catch (err) {
     if (err instanceof ApiError) {
       console.error(kleur.red(`Couldn't submit proposal (${err.status}): ${err.message}`));

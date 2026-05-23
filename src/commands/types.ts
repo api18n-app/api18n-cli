@@ -2,6 +2,7 @@ import kleur from 'kleur';
 import { Api18nClient, ApiError } from '../client.js';
 import { BACKEND_URL, loadConfig } from '../config.js';
 import { resolveToken } from '../credentials.js';
+import { withSpinner } from '../spinner.js';
 import { relativeOut, writeTypes } from '../typegen-runner.js';
 import type { TranslationDataset } from '../types.js';
 
@@ -26,7 +27,7 @@ export async function runTypes(): Promise<void> {
 
   let dataset: TranslationDataset;
   try {
-    dataset = await client.dataset();
+    dataset = await withSpinner('Fetching translations…', () => client.dataset());
   } catch (err) {
     if (err instanceof ApiError) {
       console.error(kleur.red(`Couldn't fetch dataset (${err.status}): ${err.message}`));

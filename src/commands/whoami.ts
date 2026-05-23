@@ -2,6 +2,7 @@ import kleur from "kleur";
 import { Api18nClient, ApiError } from "../client.js";
 import { BACKEND_URL, findConfigFile, loadConfig } from "../config.js";
 import { resolveToken } from "../credentials.js";
+import { withSpinner } from "../spinner.js";
 
 export async function runWhoami(): Promise<void> {
   const credentials = resolveToken();
@@ -38,7 +39,7 @@ export async function runWhoami(): Promise<void> {
     companyId,
   });
   try {
-    const me = await client.me();
+    const me = await withSpinner("Fetching user…", () => client.me());
     const name =
       [me.user.firstName, me.user.lastName].filter(Boolean).join(" ") ||
       me.user.email ||

@@ -4,6 +4,7 @@ import { BACKEND_URL, loadConfig } from '../config.js';
 import { resolveToken } from '../credentials.js';
 import { computeTranslationDiff } from '../diff.js';
 import { buildLocalePath, flatten, readJsonFile } from '../files.js';
+import { withSpinner } from '../spinner.js';
 import type { ProposalSummary, TranslationDataset } from '../types.js';
 
 export async function runStatus(): Promise<void> {
@@ -27,8 +28,11 @@ export async function runStatus(): Promise<void> {
     // clobber each other's unnamed prepared statements under PgBouncer
     // (`prepare: false`), surfacing as 500. One extra round-trip beats a
     // broken command.
-    server = await client.dataset();
-    pending = await client.listProposals('pending');
+    server = await withSpinner('Fetching translations…', () => client.dataset());
+    pending = await withSpinner(
+      'Checking pending proposals…',
+      () => client.listProposals('pending'),
+    );
   } catch (err) {
     if (err instanceof ApiError) {
       console.error(kleur.red(`Couldn't reach the dashboard (${err.status}): ${err.message}`));

@@ -3,6 +3,7 @@ import prompts from "prompts";
 import { Api18nClient, ApiError } from "../client.js";
 import { BACKEND_URL, DASHBOARD_URL } from "../config.js";
 import { writeCredentials } from "../credentials.js";
+import { withSpinner } from "../spinner.js";
 
 export interface LoginOptions {
   token?: string;
@@ -47,7 +48,7 @@ export async function runLogin(options: LoginOptions = {}): Promise<void> {
   const client = new Api18nClient({ baseUrl: BACKEND_URL, apiKey: token });
   let me;
   try {
-    me = await client.me();
+    me = await withSpinner("Verifying token…", () => client.me());
   } catch (err) {
     if (err instanceof ApiError) {
       console.error(
