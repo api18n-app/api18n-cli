@@ -34,11 +34,10 @@ program
 program
   .command('login')
   .description('Sign in with a Personal Access Token from the dashboard.')
-  .option('--base-url <url>', 'override the dashboard URL')
   .option('--token <token>', 'use a token non-interactively')
-  .action(async (opts: { baseUrl?: string; token?: string }) => {
+  .action(async (opts: { token?: string }) => {
     try {
-      await runLogin({ baseUrl: opts.baseUrl, token: opts.token });
+      await runLogin({ token: opts.token });
     } catch (err) {
       fail(err);
     }

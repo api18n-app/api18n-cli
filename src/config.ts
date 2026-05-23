@@ -2,12 +2,20 @@ import { existsSync, statSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { bundleRequire } from "bundle-require";
 
-const DEFAULT_BASE_URL = "https://www.api18n.com";
 const DEFAULT_BACKEND_URL = "https://api18n-backend.onrender.com";
 // Backend (Fastify API) URL the CLI hits for /cli/* endpoints. Override with
 // API18N_BACKEND_URL for local development, e.g.:
 //   API18N_BACKEND_URL=http://localhost:3333 bun start whoami
 const BACKEND_URL = process.env.API18N_BACKEND_URL ?? DEFAULT_BACKEND_URL;
+
+const DEFAULT_DASHBOARD_URL = "https://www.api18n.com";
+// Dashboard URL surfaced in human-facing messages (login prompt, post-push
+// review link). Has nothing to do with API routing — that's BACKEND_URL.
+// Override with API18N_DASHBOARD_URL when the dashboard runs on a different
+// host (e.g. http://localhost:3000 in dev).
+const DASHBOARD_URL =
+  process.env.API18N_DASHBOARD_URL ?? DEFAULT_DASHBOARD_URL;
+
 const DEFAULT_LOCALES_PATTERN = "messages/{locale}.json";
 const DEFAULT_TYPEGEN_OUT = "messages/messages.d.ts";
 
@@ -30,8 +38,6 @@ export interface UserConfig {
    * company has enabled in the dashboard.
    */
   include?: string[];
-  /** Override the dashboard URL. Defaults to api18n.com. */
-  baseUrl?: string;
   /** Pin to a specific company; required if your user belongs to several. */
   companyId?: string;
   /**
@@ -56,7 +62,6 @@ export interface ResolvedTypegenConfig {
 
 export interface ResolvedConfig {
   locales: string;
-  baseUrl: string;
   include?: string[];
   companyId?: string;
   typegen: ResolvedTypegenConfig;
@@ -96,7 +101,6 @@ export async function loadConfig(cwd: string): Promise<ResolvedConfig> {
   }
   return {
     locales: user.locales ?? DEFAULT_LOCALES_PATTERN,
-    baseUrl: user.baseUrl ?? DEFAULT_BASE_URL,
     include: user.include,
     companyId: user.companyId,
     typegen: resolveTypegen(user.typegen),
@@ -118,8 +122,9 @@ function resolveTypegen(value: UserConfig["typegen"]): ResolvedTypegenConfig {
 
 export {
   BACKEND_URL,
+  DASHBOARD_URL,
   DEFAULT_BACKEND_URL,
-  DEFAULT_BASE_URL,
+  DEFAULT_DASHBOARD_URL,
   DEFAULT_LOCALES_PATTERN,
   DEFAULT_TYPEGEN_OUT,
 };

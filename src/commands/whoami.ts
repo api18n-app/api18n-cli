@@ -15,7 +15,6 @@ export async function runWhoami(): Promise<void> {
   if (findConfigFile(process.cwd())) {
     try {
       const config = await loadConfig(process.cwd());
-      // baseUrl = config.baseUrl;
       companyId = config.companyId;
     } catch {
       /* config exists but unreadable — use defaults */

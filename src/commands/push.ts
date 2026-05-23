@@ -1,6 +1,6 @@
 import kleur from 'kleur';
 import { Api18nClient, ApiError } from '../client.js';
-import { BACKEND_URL, loadConfig } from '../config.js';
+import { BACKEND_URL, DASHBOARD_URL, loadConfig } from '../config.js';
 import { resolveToken } from '../credentials.js';
 import { computeTranslationDiff } from '../diff.js';
 import {
@@ -128,7 +128,7 @@ export async function runPush(options: PushOptions = {}): Promise<void> {
     process.exit(1);
   }
 
-  const dashboardUrl = `${credentials.baseUrl ?? config.baseUrl}/dashboard/translation`;
+  const dashboardUrl = `${DASHBOARD_URL}/dashboard/translation`;
   console.log();
   console.log(
     kleur.green('✓'),
