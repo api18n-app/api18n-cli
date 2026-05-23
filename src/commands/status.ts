@@ -22,10 +22,13 @@ export async function runStatus(): Promise<void> {
   let server: TranslationDataset;
   let pending: ProposalSummary[];
   try {
-    [server, pending] = await Promise.all([
-      client.dataset(),
-      client.listProposals('pending'),
-    ]);
+    // Sequential, not Promise.all: two concurrent /cli/* requests trigger
+    // back-to-back authApiKey lookups that share a bun-sql connection and
+    // clobber each other's unnamed prepared statements under PgBouncer
+    // (`prepare: false`), surfacing as 500. One extra round-trip beats a
+    // broken command.
+    server = await client.dataset();
+    pending = await client.listProposals('pending');
   } catch (err) {
     if (err instanceof ApiError) {
       console.error(kleur.red(`Couldn't reach the dashboard (${err.status}): ${err.message}`));
