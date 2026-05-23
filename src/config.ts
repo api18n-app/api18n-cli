@@ -1,10 +1,19 @@
-import { existsSync, statSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { bundleRequire } from 'bundle-require';
+import { existsSync, statSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { bundleRequire } from "bundle-require";
 
-const DEFAULT_BASE_URL = 'https://www.api18n.com';
-const DEFAULT_LOCALES_PATTERN = 'messages/{locale}.json';
-const DEFAULT_TYPEGEN_OUT = 'messages/messages.d.ts';
+// Backend (Fastify API) host the CLI talks to for /cli/* endpoints.
+// Hardcoded — no env override, so a stray `.env` value can never silently
+// redirect API traffic. Change here (and rebuild) when iterating against
+// a local backend.
+const BACKEND_URL = "https://api18n-backend.onrender.com";
+
+// Dashboard host surfaced in human-facing messages (login prompt, post-push
+// review link). Not used for API routing — that's BACKEND_URL.
+const DASHBOARD_URL = "https://www.api18n.com";
+
+const DEFAULT_LOCALES_PATTERN = "messages/{locale}.json";
+const DEFAULT_TYPEGEN_OUT = "messages/messages.d.ts";
 
 export interface TypegenConfig {
   /** Path (relative to config dir) to write the generated .d.ts. */
@@ -25,8 +34,6 @@ export interface UserConfig {
    * company has enabled in the dashboard.
    */
   include?: string[];
-  /** Override the dashboard URL. Defaults to api18n.com. */
-  baseUrl?: string;
   /** Pin to a specific company; required if your user belongs to several. */
   companyId?: string;
   /**
@@ -51,7 +58,6 @@ export interface ResolvedTypegenConfig {
 
 export interface ResolvedConfig {
   locales: string;
-  baseUrl: string;
   include?: string[];
   companyId?: string;
   typegen: ResolvedTypegenConfig;
@@ -59,7 +65,11 @@ export interface ResolvedConfig {
   rootDir: string;
 }
 
-const CONFIG_CANDIDATES = ['api18n.config.ts', 'api18n.config.js', 'api18n.config.mjs'];
+const CONFIG_CANDIDATES = [
+  "api18n.config.ts",
+  "api18n.config.js",
+  "api18n.config.mjs",
+];
 
 export function findConfigFile(cwd: string): string | null {
   for (const name of CONFIG_CANDIDATES) {
@@ -75,17 +85,18 @@ export async function loadConfig(cwd: string): Promise<ResolvedConfig> {
   const path = findConfigFile(cwd);
   if (!path) {
     throw new Error(
-      `No api18n.config.ts found in ${cwd}. Run "api18n init" to create one.`
+      `No api18n.config.ts found in ${cwd}. Run "api18n init" to create one.`,
     );
   }
   const { mod } = await bundleRequire({ filepath: path });
   const user: UserConfig = mod.default ?? mod;
-  if (!user || typeof user !== 'object') {
-    throw new Error(`api18n.config.ts must export a default object (got ${typeof user})`);
+  if (!user || typeof user !== "object") {
+    throw new Error(
+      `api18n.config.ts must export a default object (got ${typeof user})`,
+    );
   }
   return {
     locales: user.locales ?? DEFAULT_LOCALES_PATTERN,
-    baseUrl: user.baseUrl ?? DEFAULT_BASE_URL,
     include: user.include,
     companyId: user.companyId,
     typegen: resolveTypegen(user.typegen),
@@ -93,11 +104,11 @@ export async function loadConfig(cwd: string): Promise<ResolvedConfig> {
   };
 }
 
-function resolveTypegen(value: UserConfig['typegen']): ResolvedTypegenConfig {
+function resolveTypegen(value: UserConfig["typegen"]): ResolvedTypegenConfig {
   if (value === false) {
     return { enabled: false, out: DEFAULT_TYPEGEN_OUT, baseLocale: null };
   }
-  const obj = typeof value === 'object' && value !== null ? value : {};
+  const obj = typeof value === "object" && value !== null ? value : {};
   return {
     enabled: true,
     out: obj.out ?? DEFAULT_TYPEGEN_OUT,
@@ -105,4 +116,9 @@ function resolveTypegen(value: UserConfig['typegen']): ResolvedTypegenConfig {
   };
 }
 
-export { DEFAULT_BASE_URL, DEFAULT_LOCALES_PATTERN, DEFAULT_TYPEGEN_OUT };
+export {
+  BACKEND_URL,
+  DASHBOARD_URL,
+  DEFAULT_LOCALES_PATTERN,
+  DEFAULT_TYPEGEN_OUT,
+};

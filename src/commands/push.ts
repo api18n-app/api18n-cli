@@ -1,6 +1,7 @@
 import kleur from 'kleur';
 import { Api18nClient, ApiError } from '../client.js';
-import { loadConfig } from '../config.js';
+import { BACKEND_URL, DASHBOARD_URL, loadConfig } from '../config.js';
+import { withSpinner } from '../spinner.js';
 import { resolveToken } from '../credentials.js';
 import { computeTranslationDiff } from '../diff.js';
 import {
@@ -23,14 +24,14 @@ export async function runPush(options: PushOptions = {}): Promise<void> {
     process.exit(1);
   }
   const client = new Api18nClient({
-    baseUrl: credentials.baseUrl ?? config.baseUrl,
-    token: credentials.token,
+    baseUrl: BACKEND_URL,
+    apiKey: credentials.token,
     companyId: config.companyId,
   });
 
   let server: TranslationDataset;
   try {
-    server = await client.dataset();
+    server = await withSpinner('Fetching translations…', () => client.dataset());
   } catch (err) {
     if (err instanceof ApiError) {
       console.error(kleur.red(`Couldn't fetch server dataset (${err.status}): ${err.message}`));
@@ -115,10 +116,12 @@ export async function runPush(options: PushOptions = {}): Promise<void> {
 
   let proposal;
   try {
-    proposal = await client.createProposal({
-      summary: options.message ?? null,
-      diff,
-    });
+    proposal = await withSpinner('Submitting proposal…', () =>
+      client.createProposal({
+        summary: options.message ?? null,
+        diff,
+      }),
+    );
   } catch (err) {
     if (err instanceof ApiError) {
       console.error(kleur.red(`Couldn't submit proposal (${err.status}): ${err.message}`));
@@ -128,7 +131,7 @@ export async function runPush(options: PushOptions = {}): Promise<void> {
     process.exit(1);
   }
 
-  const dashboardUrl = `${credentials.baseUrl ?? config.baseUrl}/dashboard/translation`;
+  const dashboardUrl = `${DASHBOARD_URL}/dashboard/translation`;
   console.log();
   console.log(
     kleur.green('✓'),

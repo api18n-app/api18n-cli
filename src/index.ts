@@ -34,11 +34,10 @@ program
 program
   .command('login')
   .description('Sign in with a Personal Access Token from the dashboard.')
-  .option('--base-url <url>', 'override the dashboard URL')
   .option('--token <token>', 'use a token non-interactively')
-  .action(async (opts: { baseUrl?: string; token?: string }) => {
+  .action(async (opts: { token?: string }) => {
     try {
-      await runLogin({ baseUrl: opts.baseUrl, token: opts.token });
+      await runLogin({ token: opts.token });
     } catch (err) {
       fail(err);
     }
@@ -143,7 +142,19 @@ proposals
     }
   });
 
-program.parseAsync(process.argv).catch(fail);
+// IMPORTANT: do not auto-invoke `parseAsync` here. This module is also
+// imported as a library — `api18n.config.ts` does `import { defineConfig }
+// from "@api18n/cli"` — and any side effect at module load would run the
+// installed copy of the CLI a second time (with whatever stale code it has),
+// hijacking the command in subtle ways. The bin shim is the only caller of
+// `run()`.
+export async function run(argv: readonly string[] = process.argv): Promise<void> {
+  try {
+    await program.parseAsync([...argv]);
+  } catch (err) {
+    fail(err);
+  }
+}
 
 function fail(err: unknown): never {
   if (err instanceof Error) {

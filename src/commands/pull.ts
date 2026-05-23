@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { relative } from 'node:path';
 import kleur from 'kleur';
 import { Api18nClient, ApiError } from '../client.js';
-import { loadConfig } from '../config.js';
+import { BACKEND_URL, loadConfig } from '../config.js';
 import { resolveToken } from '../credentials.js';
 import {
   buildLocalePath,
@@ -10,6 +10,7 @@ import {
   unflatten,
   writeJsonFile,
 } from '../files.js';
+import { withSpinner } from '../spinner.js';
 import { relativeOut, writeTypes } from '../typegen-runner.js';
 import type { TranslationDataset, TranslationRow } from '../types.js';
 
@@ -27,14 +28,14 @@ export async function runPull(options: PullOptions = {}): Promise<void> {
   }
 
   const client = new Api18nClient({
-    baseUrl: credentials.baseUrl ?? config.baseUrl,
-    token: credentials.token,
+    baseUrl: BACKEND_URL,
+    apiKey: credentials.token,
     companyId: config.companyId,
   });
 
   let dataset: TranslationDataset;
   try {
-    dataset = await client.dataset();
+    dataset = await withSpinner('Fetching translations…', () => client.dataset());
   } catch (err) {
     if (err instanceof ApiError) {
       console.error(kleur.red(`Couldn't fetch dataset (${err.status}): ${err.message}`));

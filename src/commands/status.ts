@@ -1,9 +1,10 @@
 import kleur from 'kleur';
 import { Api18nClient, ApiError } from '../client.js';
-import { loadConfig } from '../config.js';
+import { BACKEND_URL, loadConfig } from '../config.js';
 import { resolveToken } from '../credentials.js';
 import { computeTranslationDiff } from '../diff.js';
 import { buildLocalePath, flatten, readJsonFile } from '../files.js';
+import { withSpinner } from '../spinner.js';
 import type { ProposalSummary, TranslationDataset } from '../types.js';
 
 export async function runStatus(): Promise<void> {
@@ -14,18 +15,24 @@ export async function runStatus(): Promise<void> {
     process.exit(1);
   }
   const client = new Api18nClient({
-    baseUrl: credentials.baseUrl ?? config.baseUrl,
-    token: credentials.token,
+    baseUrl: BACKEND_URL,
+    apiKey: credentials.token,
     companyId: config.companyId,
   });
 
   let server: TranslationDataset;
   let pending: ProposalSummary[];
   try {
-    [server, pending] = await Promise.all([
-      client.dataset(),
-      client.listProposals('pending'),
-    ]);
+    // Sequential, not Promise.all: two concurrent /cli/* requests trigger
+    // back-to-back authApiKey lookups that share a bun-sql connection and
+    // clobber each other's unnamed prepared statements under PgBouncer
+    // (`prepare: false`), surfacing as 500. One extra round-trip beats a
+    // broken command.
+    server = await withSpinner('Fetching translations…', () => client.dataset());
+    pending = await withSpinner(
+      'Checking pending proposals…',
+      () => client.listProposals('pending'),
+    );
   } catch (err) {
     if (err instanceof ApiError) {
       console.error(kleur.red(`Couldn't reach the dashboard (${err.status}): ${err.message}`));

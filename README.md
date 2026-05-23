@@ -26,18 +26,15 @@ npx api18n pull           # writes messages/{locale}.json
 `api18n.config.ts` at the root of your repo:
 
 ```ts
-import { defineConfig } from '@api18n/cli';
+import { defineConfig } from "@api18n/cli";
 
 export default defineConfig({
   // Path pattern with {locale} placeholder. Default: messages/{locale}.json
-  locales: 'messages/{locale}.json',
+  locales: "messages/{locale}.json",
 
   // Optional — only pull/push these locales. Defaults to all enabled
   // on the dashboard.
   // include: ['en', 'pt', 'fr'],
-
-  // Optional — override the dashboard URL.
-  // baseUrl: 'https://www.api18n.com',
 
   // Required if your account belongs to more than one company.
   // companyId: process.env.API18N_COMPANY_ID,
@@ -47,29 +44,31 @@ export default defineConfig({
 ## Authentication
 
 `api18n login` walks you through generating a Personal Access Token at
-**Dashboard → Settings → API Keys**
-([https://www.api18n.com/dashboard/settings/api-keys](https://www.api18n.com/dashboard/settings/api-keys))
-and saves it for future commands.
+[**Dashboard → Settings → API Keys**](https://www.api18n.com/dashboard/settings/api-keys).
+For CI, pass the token directly:
 
-For CI, set `API18N_TOKEN` in the environment instead — no `login` needed.
+```bash
+api18n login --token "$API18N_PAT"
+api18n pull
+```
 
 ## Commands
 
-| Command | What it does |
-|---|---|
-| `api18n init` | Create `api18n.config.ts` |
-| `api18n login` | Store a Personal Access Token |
-| `api18n logout` | Delete the stored token |
-| `api18n whoami` | Print the signed-in user / company / host |
-| `api18n pull` | Fetch translations and write local files |
-| `api18n pull --dry-run` | Show what would change without writing |
-| `api18n pull --locale en pt` | Only pull specific locales |
-| `api18n push` | Submit local changes as a proposal for dashboard approval ([https://www.api18n.com/dashboard/translation](https://www.api18n.com/dashboard/translation)) |
-| `api18n push -m "..."` | Attach a summary to the proposal |
-| `api18n push --dry-run` | Show the diff without submitting |
-| `api18n status` | Show pending proposals and local-vs-server drift |
-| `api18n proposals list` | List recent proposals |
-| `api18n proposals show <id>` | Print a single proposal's full diff |
+| Command                      | What it does                                                                                                                                             |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `api18n init`                | Create `api18n.config.ts`                                                                                                                                |
+| `api18n login`               | Store a Personal Access Token                                                                                                                            |
+| `api18n logout`              | Delete the stored token                                                                                                                                  |
+| `api18n whoami`              | Print the signed-in user and company                                                                                                                     |
+| `api18n pull`                | Fetch translations and write local files                                                                                                                 |
+| `api18n pull --dry-run`      | Show what would change without writing                                                                                                                   |
+| `api18n pull --locale en pt` | Only pull specific locales                                                                                                                               |
+| `api18n push`                | Submit local changes as a proposal for dashboard approval ([https://www.api18n.com/dashboard/translation](https://www.api18n.com/dashboard/translation)) |
+| `api18n push -m "..."`       | Attach a summary to the proposal                                                                                                                         |
+| `api18n push --dry-run`      | Show the diff without submitting                                                                                                                         |
+| `api18n status`              | Show pending proposals and local-vs-server drift                                                                                                         |
+| `api18n proposals list`      | List recent proposals                                                                                                                                    |
+| `api18n proposals show <id>` | Print a single proposal's full diff                                                                                                                      |
 
 ## File format
 

@@ -4,10 +4,10 @@ import kleur from 'kleur';
 import prompts from 'prompts';
 import { DEFAULT_LOCALES_PATTERN, findConfigFile } from '../config.js';
 
-const TEMPLATE = (locales: string, baseUrl?: string) => `import { defineConfig } from '@api18n/cli';
+const TEMPLATE = (locales: string) => `import { defineConfig } from '@api18n/cli';
 
 export default defineConfig({
-  locales: '${locales}',${baseUrl ? `\n  baseUrl: '${baseUrl}',` : ''}
+  locales: '${locales}',
 });
 `;
 
@@ -30,13 +30,6 @@ export async function runInit(): Promise<void> {
         initial: DEFAULT_LOCALES_PATTERN,
         hint: '{locale} is replaced with the language code',
       },
-      {
-        type: 'text',
-        name: 'baseUrl',
-        message: 'Dashboard URL (leave blank for production)',
-        initial: '',
-        format: (val: string) => val.trim(),
-      },
     ],
     {
       onCancel: () => {
@@ -51,8 +44,7 @@ export async function runInit(): Promise<void> {
     console.log(kleur.yellow(`✱ ${path} already exists. Cancelled.`));
     return;
   }
-  const baseUrl = answers.baseUrl ? answers.baseUrl : undefined;
-  writeFileSync(path, TEMPLATE(answers.locales || DEFAULT_LOCALES_PATTERN, baseUrl), 'utf8');
+  writeFileSync(path, TEMPLATE(answers.locales || DEFAULT_LOCALES_PATTERN), 'utf8');
 
   console.log();
   console.log(kleur.green('✓'), `created ${kleur.bold('api18n.config.ts')}`);
