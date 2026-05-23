@@ -50,15 +50,12 @@ export function clearCredentials(): void {
 }
 
 /**
- * Resolve the token to use for API calls. Priority:
- *   1. --token flag (passed in)
- *   2. API18N_TOKEN env var
- *   3. stored credentials file
+ * Resolve the token to use for API calls. The credentials file written by
+ * `api18n login` is the single source of truth — no env-var fallback, so
+ * behaviour is identical regardless of whether the runner auto-loads `.env`.
+ * CI: run `api18n login --token "$TOKEN"` once per job before other commands.
  */
-export function resolveToken(overrideFlag?: string): { token: string } | null {
-  if (overrideFlag) return { token: overrideFlag };
-  const env = process.env.API18N_TOKEN;
-  if (env && env.length > 0) return { token: env };
+export function resolveToken(): { token: string } | null {
   const stored = readCredentials();
   if (stored) return { token: stored.token };
   return null;

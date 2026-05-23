@@ -2,19 +2,15 @@ import { existsSync, statSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { bundleRequire } from "bundle-require";
 
-const DEFAULT_BACKEND_URL = "https://api18n-backend.onrender.com";
-// Backend (Fastify API) URL the CLI hits for /cli/* endpoints. Override with
-// API18N_BACKEND_URL for local development, e.g.:
-//   API18N_BACKEND_URL=http://localhost:3333 bun start whoami
-const BACKEND_URL = process.env.API18N_BACKEND_URL ?? DEFAULT_BACKEND_URL;
+// Backend (Fastify API) host the CLI talks to for /cli/* endpoints.
+// Hardcoded — no env override, so a stray `.env` value can never silently
+// redirect API traffic. Change here (and rebuild) when iterating against
+// a local backend.
+const BACKEND_URL = "https://api18n-backend.onrender.com";
 
-const DEFAULT_DASHBOARD_URL = "https://www.api18n.com";
-// Dashboard URL surfaced in human-facing messages (login prompt, post-push
-// review link). Has nothing to do with API routing — that's BACKEND_URL.
-// Override with API18N_DASHBOARD_URL when the dashboard runs on a different
-// host (e.g. http://localhost:3000 in dev).
-const DASHBOARD_URL =
-  process.env.API18N_DASHBOARD_URL ?? DEFAULT_DASHBOARD_URL;
+// Dashboard host surfaced in human-facing messages (login prompt, post-push
+// review link). Not used for API routing — that's BACKEND_URL.
+const DASHBOARD_URL = "https://www.api18n.com";
 
 const DEFAULT_LOCALES_PATTERN = "messages/{locale}.json";
 const DEFAULT_TYPEGEN_OUT = "messages/messages.d.ts";
@@ -123,8 +119,6 @@ function resolveTypegen(value: UserConfig["typegen"]): ResolvedTypegenConfig {
 export {
   BACKEND_URL,
   DASHBOARD_URL,
-  DEFAULT_BACKEND_URL,
-  DEFAULT_DASHBOARD_URL,
   DEFAULT_LOCALES_PATTERN,
   DEFAULT_TYPEGEN_OUT,
 };
