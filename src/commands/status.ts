@@ -1,6 +1,6 @@
 import kleur from 'kleur';
 import { Api18nClient, ApiError } from '../client.js';
-import { loadConfig } from '../config.js';
+import { BACKEND_URL, loadConfig } from '../config.js';
 import { resolveToken } from '../credentials.js';
 import { computeTranslationDiff } from '../diff.js';
 import { buildLocalePath, flatten, readJsonFile } from '../files.js';
@@ -14,8 +14,8 @@ export async function runStatus(): Promise<void> {
     process.exit(1);
   }
   const client = new Api18nClient({
-    baseUrl: credentials.baseUrl ?? config.baseUrl,
-    token: credentials.token,
+    baseUrl: BACKEND_URL,
+    apiKey: credentials.token,
     companyId: config.companyId,
   });
 

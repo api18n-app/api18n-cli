@@ -91,13 +91,13 @@ export class Api18nClient {
   }
 
   dataset(): Promise<TranslationDataset> {
-    return this.request<TranslationDataset>("/api/cli/dataset");
+    return this.request<TranslationDataset>("/cli/dataset");
   }
 
   async listProposals(status?: ProposalStatus): Promise<ProposalSummary[]> {
     const q = status ? `?status=${encodeURIComponent(status)}` : "";
     const { data } = await this.request<{ data: ProposalSummary[] }>(
-      `/api/cli/proposals${q}`,
+      `/cli/proposals${q}`,
     );
     return data;
   }
@@ -107,7 +107,7 @@ export class Api18nClient {
     diff: TranslationDiff;
   }): Promise<ProposalSummary> {
     const { data } = await this.request<{ data: ProposalSummary }>(
-      "/api/cli/proposals",
+      "/cli/proposals",
       {
         method: "POST",
         body: { source: "cli", ...input },
@@ -121,7 +121,7 @@ export class Api18nClient {
   ): Promise<ProposalSummary & { diff: TranslationDiff }> {
     const { data } = await this.request<{
       data: ProposalSummary & { diff: TranslationDiff };
-    }>(`/api/cli/proposals/${encodeURIComponent(id)}`);
+    }>(`/cli/proposals/${encodeURIComponent(id)}`);
     return data;
   }
 }

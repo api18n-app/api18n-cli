@@ -143,7 +143,19 @@ proposals
     }
   });
 
-program.parseAsync(process.argv).catch(fail);
+// IMPORTANT: do not auto-invoke `parseAsync` here. This module is also
+// imported as a library — `api18n.config.ts` does `import { defineConfig }
+// from "@api18n/cli"` — and any side effect at module load would run the
+// installed copy of the CLI a second time (with whatever stale code it has),
+// hijacking the command in subtle ways. The bin shim is the only caller of
+// `run()`.
+export async function run(argv: readonly string[] = process.argv): Promise<void> {
+  try {
+    await program.parseAsync([...argv]);
+  } catch (err) {
+    fail(err);
+  }
+}
 
 function fail(err: unknown): never {
   if (err instanceof Error) {

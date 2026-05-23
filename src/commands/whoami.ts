@@ -1,6 +1,6 @@
 import kleur from "kleur";
 import { Api18nClient, ApiError } from "../client.js";
-import { findConfigFile, loadConfig, DEFAULT_BASE_URL } from "../config.js";
+import { BACKEND_URL, findConfigFile, loadConfig } from "../config.js";
 import { resolveToken } from "../credentials.js";
 
 export async function runWhoami(): Promise<void> {
@@ -10,7 +10,7 @@ export async function runWhoami(): Promise<void> {
     process.exit(1);
   }
 
-  let baseUrl = "http://localhost:3333";
+  let baseUrl = BACKEND_URL;
   let companyId: string | undefined;
   if (findConfigFile(process.cwd())) {
     try {

@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { relative } from 'node:path';
 import kleur from 'kleur';
 import { Api18nClient, ApiError } from '../client.js';
-import { loadConfig } from '../config.js';
+import { BACKEND_URL, loadConfig } from '../config.js';
 import { resolveToken } from '../credentials.js';
 import {
   buildLocalePath,
@@ -27,8 +27,8 @@ export async function runPull(options: PullOptions = {}): Promise<void> {
   }
 
   const client = new Api18nClient({
-    baseUrl: credentials.baseUrl ?? config.baseUrl,
-    token: credentials.token,
+    baseUrl: BACKEND_URL,
+    apiKey: credentials.token,
     companyId: config.companyId,
   });
 

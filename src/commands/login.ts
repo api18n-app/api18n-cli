@@ -1,7 +1,7 @@
 import kleur from "kleur";
 import prompts from "prompts";
 import { Api18nClient, ApiError } from "../client.js";
-import { DEFAULT_BASE_URL, findConfigFile, loadConfig } from "../config.js";
+import { findConfigFile, loadConfig } from "../config.js";
 import { writeCredentials } from "../credentials.js";
 
 export interface LoginOptions {
