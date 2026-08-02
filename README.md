@@ -36,10 +36,34 @@ export default defineConfig({
   // on the dashboard.
   // include: ['en', 'pt', 'fr'],
 
+  // Optional — map a server locale to one or more local file codes.
+  // Use when your local files use a variant the server doesn't support.
+  // On pull, server `pt` writes to `messages/pt-br.json` (not `pt.json`).
+  // On push, `messages/pt-br.json` feeds the server `pt` column.
+  // localeMap: { pt: ['pt-br'] },
+
   // Required if your account belongs to more than one company.
   // companyId: process.env.API18N_COMPANY_ID,
 });
 ```
+
+### Locale variants
+
+If your local files use a variant the server doesn't support (e.g. `pt-br`
+for server `pt`), map it with `localeMap`:
+
+```ts
+export default defineConfig({
+  locales: "messages/{locale}.json",
+  localeMap: { pt: ["pt-br"] },
+});
+```
+
+On `pull`, server `pt` writes to `messages/pt-br.json` (not `pt.json`).
+On `push`, `messages/pt-br.json` feeds the server `pt` column. Server locales
+not listed in `localeMap` use the default `{locale}` path. `api18n init`
+can generate this for you — it asks whether you use variants and shows a
+preview before writing the config.
 
 ## Authentication
 

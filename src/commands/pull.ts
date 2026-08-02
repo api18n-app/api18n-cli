@@ -1,14 +1,16 @@
-import { existsSync } from 'node:fs';
+import { existsSync, statSync, writeFileSync } from 'node:fs';
 import { relative } from 'node:path';
 import kleur from 'kleur';
 import { Api18nClient, ApiError } from '../client.js';
 import { BACKEND_URL, loadConfig } from '../config.js';
 import { resolveToken } from '../credentials.js';
 import {
+  applyServerToRaw,
   buildLocalePath,
-  readJsonFile,
+  detectIndent,
+  mergePreservingOrder,
+  readJsonFileWithRaw,
   unflatten,
-  writeJsonFile,
 } from '../files.js';
 import { withSpinner } from '../spinner.js';
 import { relativeOut, writeTypes } from '../typegen-runner.js';
@@ -17,6 +19,15 @@ import type { TranslationDataset, TranslationRow } from '../types.js';
 export interface PullOptions {
   dryRun?: boolean;
   locale?: string[];
+}
+
+/** Re-serialize a merged object (fallback path only — patch edits preferred). */
+function serialize(
+  content: Record<string, unknown>,
+  indent: string,
+  trailingNewline: boolean,
+): string {
+  return JSON.stringify(content, null, indent) + (trailingNewline ? '\n' : '');
 }
 
 export async function runPull(options: PullOptions = {}): Promise<void> {
@@ -76,29 +87,60 @@ export async function runPull(options: PullOptions = {}): Promise<void> {
   };
 
   for (const lang of languages) {
-    const path = buildLocalePath(config.rootDir, config.locales, lang.code);
     const flat: Record<string, string | null> = {};
     for (const row of dataset.rows as TranslationRow[]) {
       flat[row.key] = row.values[lang.code] ?? null;
     }
     const nested = unflatten(flat);
 
-    const exists = existsSync(path);
-    const current = exists ? readJsonFile(path) : null;
-    const same = current !== null && stableStringify(current) === stableStringify(nested);
+    // ponytail: localeMap fans one server lang to N local files; last entry wins
+    const localCodes = config.localeMap[lang.code] ?? [lang.code];
+    for (const localCode of localCodes) {
+      const path = buildLocalePath(config.rootDir, config.locales, localCode);
+      const exists = existsSync(path) && statSync(path).isFile();
+      const existing = exists ? readJsonFileWithRaw(path) : null;
+      const current = existing ? existing.data : null;
+      const rel = relative(process.cwd(), path);
 
-    const rel = relative(process.cwd(), path);
+      // Existing file → patch in place first (comments, order, formatting
+      // survive, like the backend does on GitHub push). Falls back to a full
+      // merge+re-serialize only when a key must be removed from the file —
+      // the one case positional edits can't express.
+      let text: string | undefined;
+      let changed: boolean;
+      if (existing) {
+        const patched = applyServerToRaw(existing.raw, flat, {
+          indent: detectIndent(existing.raw),
+        });
+        if (patched) {
+          text = patched.text;
+          changed = patched.changed;
+        } else {
+          const merged = mergePreservingOrder(current, nested);
+          changed = merged.changed;
+          if (changed) {
+            const indent = detectIndent(existing.raw);
+            const trailingNewline = existing.raw.endsWith('\n');
+            text = serialize(merged.result, indent, trailingNewline);
+          }
+        }
+      } else {
+        const merged = mergePreservingOrder(null, nested);
+        changed = merged.changed;
+        if (changed) text = serialize(merged.result, '  ', true);
+      }
 
-    if (same) {
-      summary.unchanged.push(rel);
-      continue;
+      if (!changed) {
+        summary.unchanged.push(rel);
+        continue;
+      }
+
+      if (!options.dryRun) {
+        writeFileSync(path, text!, 'utf8');
+      }
+      if (exists) summary.updated.push(rel);
+      else summary.created.push(rel);
     }
-
-    if (!options.dryRun) {
-      writeJsonFile(path, nested);
-    }
-    if (exists) summary.updated.push(rel);
-    else summary.created.push(rel);
   }
 
   console.log();
@@ -138,18 +180,4 @@ export async function runPull(options: PullOptions = {}): Promise<void> {
       );
     }
   }
-}
-
-function stableStringify(value: unknown): string {
-  return JSON.stringify(value, Object.keys(flattenForSort(value)).sort());
-}
-
-function flattenForSort(value: unknown, out: Record<string, true> = {}): Record<string, true> {
-  if (value && typeof value === 'object' && !Array.isArray(value)) {
-    for (const k of Object.keys(value as object)) {
-      out[k] = true;
-      flattenForSort((value as Record<string, unknown>)[k], out);
-    }
-  }
-  return out;
 }
