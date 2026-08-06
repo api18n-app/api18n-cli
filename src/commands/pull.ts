@@ -93,54 +93,52 @@ export async function runPull(options: PullOptions = {}): Promise<void> {
     }
     const nested = unflatten(flat);
 
-    // ponytail: localeMap fans one server lang to N local files; last entry wins
-    const localCodes = config.localeMap[lang.code] ?? [lang.code];
-    for (const localCode of localCodes) {
-      const path = buildLocalePath(config.rootDir, config.locales, localCode);
-      const exists = existsSync(path) && statSync(path).isFile();
-      const existing = exists ? readJsonFileWithRaw(path) : null;
-      const current = existing ? existing.data : null;
-      const rel = relative(process.cwd(), path);
+    // Each server language writes to its own {locale}.json file.
+    const localCode = lang.code;
+    const path = buildLocalePath(config.rootDir, config.locales, localCode);
+    const exists = existsSync(path) && statSync(path).isFile();
+    const existing = exists ? readJsonFileWithRaw(path) : null;
+    const current = existing ? existing.data : null;
+    const rel = relative(process.cwd(), path);
 
-      // Existing file → patch in place first (comments, order, formatting
-      // survive, like the backend does on GitHub push). Falls back to a full
-      // merge+re-serialize only when a key must be removed from the file —
-      // the one case positional edits can't express.
-      let text: string | undefined;
-      let changed: boolean;
-      if (existing) {
-        const patched = applyServerToRaw(existing.raw, flat, {
-          indent: detectIndent(existing.raw),
-        });
-        if (patched) {
-          text = patched.text;
-          changed = patched.changed;
-        } else {
-          const merged = mergePreservingOrder(current, nested);
-          changed = merged.changed;
-          if (changed) {
-            const indent = detectIndent(existing.raw);
-            const trailingNewline = existing.raw.endsWith('\n');
-            text = serialize(merged.result, indent, trailingNewline);
-          }
-        }
+    // Existing file → patch in place first (comments, order, formatting
+    // survive, like the backend does on GitHub push). Falls back to a full
+    // merge+re-serialize only when a key must be removed from the file —
+    // the one case positional edits can't express.
+    let text: string | undefined;
+    let changed: boolean;
+    if (existing) {
+      const patched = applyServerToRaw(existing.raw, flat, {
+        indent: detectIndent(existing.raw),
+      });
+      if (patched) {
+        text = patched.text;
+        changed = patched.changed;
       } else {
-        const merged = mergePreservingOrder(null, nested);
+        const merged = mergePreservingOrder(current, nested);
         changed = merged.changed;
-        if (changed) text = serialize(merged.result, '  ', true);
+        if (changed) {
+          const indent = detectIndent(existing.raw);
+          const trailingNewline = existing.raw.endsWith('\n');
+          text = serialize(merged.result, indent, trailingNewline);
+        }
       }
-
-      if (!changed) {
-        summary.unchanged.push(rel);
-        continue;
-      }
-
-      if (!options.dryRun) {
-        writeFileSync(path, text!, 'utf8');
-      }
-      if (exists) summary.updated.push(rel);
-      else summary.created.push(rel);
+    } else {
+      const merged = mergePreservingOrder(null, nested);
+      changed = merged.changed;
+      if (changed) text = serialize(merged.result, '  ', true);
     }
+
+    if (!changed) {
+      summary.unchanged.push(rel);
+      continue;
+    }
+
+    if (!options.dryRun) {
+      writeFileSync(path, text!, 'utf8');
+    }
+    if (exists) summary.updated.push(rel);
+    else summary.created.push(rel);
   }
 
   console.log();

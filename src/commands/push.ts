@@ -51,21 +51,15 @@ export async function runPush(options: PushOptions = {}): Promise<void> {
   const missingFiles: string[] = [];
 
   for (const lang of languages) {
-    // ponytail: localeMap merges N local files into one server column; last file wins
-    const localCodes = config.localeMap[lang.code] ?? [lang.code];
-    let merged: Record<string, string> = {};
-    let foundAny = false;
-    for (const localCode of localCodes) {
-      const path = buildLocalePath(config.rootDir, config.locales, localCode);
-      const content = readJsonFile(path);
-      if (content === null) continue;
-      foundAny = true;
-      merged = { ...merged, ...flatten(content) };
-    }
-    if (!foundAny) {
-      missingFiles.push(buildLocalePath(config.rootDir, config.locales, localCodes[0]));
+    // Each server language reads from its own {locale}.json file.
+    const localCode = lang.code;
+    const path = buildLocalePath(config.rootDir, config.locales, localCode);
+    const content = readJsonFile(path);
+    if (content === null) {
+      missingFiles.push(path);
       continue;
     }
+    const merged = flatten(content);
     for (const [key, value] of Object.entries(merged)) {
       let entry = localByKey.get(key);
       if (!entry) {

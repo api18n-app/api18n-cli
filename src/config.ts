@@ -34,14 +34,6 @@ export interface UserConfig {
    * company has enabled in the dashboard.
    */
   include?: string[];
-  /**
-   * Map a server language code to one or more local file codes.
-   * Use when your local files use a variant the server doesn't support,
-   * e.g. `{ 'pt': ['pt-br'] }` writes server `pt` to local `pt-br.json`
-   * (and skips the default `pt.json`). Server codes not listed here use
-   * the default `{locale}` path.
-   */
-  localeMap?: Record<string, string[]>;
   /** Pin to a specific company; required if your user belongs to several. */
   companyId?: string;
   /**
@@ -67,7 +59,6 @@ export interface ResolvedTypegenConfig {
 export interface ResolvedConfig {
   locales: string;
   include?: string[];
-  localeMap: Record<string, string[]>;
   companyId?: string;
   typegen: ResolvedTypegenConfig;
   /** Absolute path to the directory containing api18n.config.ts. */
@@ -111,18 +102,9 @@ export async function loadConfig(cwd: string): Promise<ResolvedConfig> {
         `Example: "messages/{locale}.json"`,
     );
   }
-  const localeMap = user.localeMap ?? {};
-  for (const [serverCode, localCodes] of Object.entries(localeMap)) {
-    if (!Array.isArray(localCodes) || localCodes.length === 0) {
-      throw new Error(
-        `api18n.config.ts "localeMap.${serverCode}" must be a non-empty array of local codes`,
-      );
-    }
-  }
   return {
     locales,
     include: user.include,
-    localeMap,
     companyId: user.companyId,
     typegen: resolveTypegen(user.typegen),
     rootDir: dirname(path),
