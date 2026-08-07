@@ -7,7 +7,12 @@ function makeDataset(rows: Array<{ key: string; values: Record<string, string | 
     schemaVersion: 1,
     company: { id: 'co-1', name: 'Test' },
     baseLanguage: { code: 'en', name: 'English' },
-    languages: langs.map((code) => ({ code, name: code.toUpperCase(), isBase: code === 'en' })),
+    languages: langs.map((code) => ({
+      code,
+      name: code.toUpperCase(),
+      stability: code === 'en' ? 'stable' : 'experimental',
+      isBase: code === 'en',
+    })),
     rows: rows.map((r) => ({ key: r.key, referenceName: null, values: r.values })),
     truncated: false,
     exportedAt: '2026-05-09T00:00:00.000Z',

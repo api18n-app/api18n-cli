@@ -41,6 +41,9 @@ export default defineConfig({
 });
 ```
 
+Locales marked experimental by api18n are fully supported by pull and push.
+The CLI prints a warning when one is included so the status is visible.
+
 ## Authentication
 
 `api18n login` walks you through generating a Personal Access Token at

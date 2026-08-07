@@ -14,6 +14,7 @@ import {
 } from '../files.js';
 import { withSpinner } from '../spinner.js';
 import { relativeOut, writeTypes } from '../typegen-runner.js';
+import { getExperimentalLanguageCodes } from '../language-stability.js';
 import type { TranslationDataset, TranslationRow } from '../types.js';
 
 export interface PullOptions {
@@ -69,6 +70,15 @@ export async function runPull(options: PullOptions = {}): Promise<void> {
   if (languages.length === 0) {
     console.log(kleur.yellow('No matching locales to pull.'));
     return;
+  }
+
+  const experimentalCodes = getExperimentalLanguageCodes(languages);
+  if (experimentalCodes.length > 0) {
+    console.warn(
+      kleur.yellow(
+        `⚠ Experimental locales: ${experimentalCodes.join(', ')}. They are supported, but experimental.`,
+      ),
+    );
   }
 
   if (dataset.truncated) {

@@ -15,6 +15,7 @@ export interface TranslationDataset {
 export interface DatasetLanguage {
   code: string;
   name: string;
+  stability: 'stable' | 'experimental';
   isBase: boolean;
 }
 

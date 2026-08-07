@@ -11,6 +11,8 @@ export class ApiError extends Error {
     public status: number,
     message: string,
     public body?: unknown,
+    public errorKey?: string,
+    public unsupportedCodes?: string[],
   ) {
     super(message);
     this.name = "ApiError";
@@ -73,14 +75,28 @@ export class Api18nClient {
     }
 
     if (!response.ok) {
+      const errorBody =
+        typeof body === "object" && body !== null
+          ? (body as Record<string, unknown>)
+          : undefined;
       const message =
-        typeof body === "object" &&
-        body !== null &&
-        "error" in body &&
-        typeof (body as { error: unknown }).error === "string"
-          ? (body as { error: string }).error
+        typeof errorBody?.error === "string"
+          ? errorBody.error
+          : typeof errorBody?.message === "string"
+            ? errorBody.message
           : response.statusText || `Request failed (${response.status})`;
-      throw new ApiError(response.status, message, body);
+      const unsupportedCodes = Array.isArray(errorBody?.unsupportedCodes)
+        ? errorBody.unsupportedCodes.filter(
+            (code): code is string => typeof code === "string",
+          )
+        : undefined;
+      throw new ApiError(
+        response.status,
+        message,
+        body,
+        typeof errorBody?.errorKey === "string" ? errorBody.errorKey : undefined,
+        unsupportedCodes,
+      );
     }
 
     return body as T;

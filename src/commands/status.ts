@@ -5,6 +5,7 @@ import { resolveToken } from '../credentials.js';
 import { computeTranslationDiff } from '../diff.js';
 import { buildLocalePath, flatten, readJsonFile } from '../files.js';
 import { withSpinner } from '../spinner.js';
+import { getExperimentalLanguageCodes } from '../language-stability.js';
 import type { ProposalSummary, TranslationDataset } from '../types.js';
 
 export async function runStatus(): Promise<void> {
@@ -44,6 +45,14 @@ export async function runStatus(): Promise<void> {
 
   // Pending proposals first
   console.log();
+  const experimentalCodes = getExperimentalLanguageCodes(server.languages);
+  if (experimentalCodes.length > 0) {
+    console.warn(
+      kleur.yellow(
+        `⚠ Experimental locales: ${experimentalCodes.join(', ')}. They are supported, but experimental.`,
+      ),
+    );
+  }
   if (pending.length === 0) {
     console.log(kleur.gray('No pending proposals.'));
   } else {
