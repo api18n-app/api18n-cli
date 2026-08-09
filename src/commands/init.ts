@@ -1,15 +1,14 @@
 import { existsSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { isAbsolute, relative, resolve } from 'node:path';
 import kleur from 'kleur';
 import prompts from 'prompts';
 import { byLengthAsc, Fzf } from 'fzf';
 import { DEFAULT_LOCALES_PATTERN, findConfigFile } from '../config.js';
 
-const TEMPLATE = (locales: string, localeMap: Record<string, string[]>) => `import { defineConfig } from '@api18n/cli';
+const TEMPLATE = (locales: string) => `import { defineConfig } from '@api18n/cli';
 
 export default defineConfig({
-  locales: '${locales}',${Object.keys(localeMap).length > 0 ? `
-  localeMap: ${JSON.stringify(localeMap, null, 2).replace(/\n/g, '\n  ')},` : ''}
+  locales: '${locales}',
 });
 `;
 
@@ -196,67 +195,6 @@ function dirSuggest(
   ]);
 }
 
-/**
- * Extract the base language from a locale code using Intl.Locale when the tag
- * is valid (pt-BR → pt, es-MX → es, zh-Hant → zh). Falls back to the segment
- * before the first `-`/`_` for codes Intl.Locale rejects — e.g. a custom
- * project code like `pt-br-x-custom` is still mapped to `pt`.
- */
-function baseLocale(code: string): string {
-  try {
-    return new Intl.Locale(code.replace(/_/g, '-')).language;
-  } catch {
-    return code.split(/[-_]/)[0].toLowerCase();
-  }
-}
-
-/**
- * Infer locale variants from the files on disk, matching the config pattern.
- * A variant file is `{before}{code}{after}` where `code` contains `-` or `_`
- * and `base` (its language part) differs from the code itself. The base
- * becomes the server code in localeMap:
- *   pt-br.json  →  { pt: ['pt-br'] }
- *   es_MX.json  →  { es: ['es_MX'] }
- *   zh-Hant.json →  { zh: ['zh-Hant'] }
- * The default file for a base locale (pt.json) never matches, so no mapping
- * is inferred for it — localeMap only ever overrides variants.
- *
- * ponytail: only patterns whose {locale} sits in the basename are scanned;
- * directory-form patterns ({locale}/messages.json) return {} — rare, add
- * when someone needs it.
- */
-export function detectLocaleVariants(
-  rootDir: string,
-  localesPattern: string,
-): Record<string, string[]> {
-  const pattern = localesPattern.replace(/\\/g, '/');
-  const dir = dirname(resolve(rootDir, pattern));
-  const last = pattern.split('/').pop() ?? '';
-  const [before, after] = last.split('{locale}');
-  if (after === undefined) return {};
-
-  const localeMap: Record<string, string[]> = {};
-  let entries: string[] = [];
-  try {
-    entries = readdirSync(dir);
-  } catch {
-    return {};
-  }
-
-  for (const name of entries) {
-    if (!name.startsWith(before) || !name.endsWith(after)) continue;
-    const code = name.slice(before.length, name.length - after.length);
-    if (!code.includes('-') && !code.includes('_')) continue;
-    const base = baseLocale(code);
-    if (base === code.toLowerCase()) continue;
-    (localeMap[base] ??= []).push(code);
-  }
-  // readdirSync order is filesystem-dependent; sort so the generated config
-  // is deterministic on every machine.
-  for (const codes of Object.values(localeMap)) codes.sort();
-  return localeMap;
-}
-
 const onCancel = () => {
   console.log(kleur.gray('Cancelled.'));
   process.exit(0);
@@ -314,46 +252,11 @@ export async function runInit(): Promise<void> {
     console.log(kleur.gray(`Added {locale}.json → ${locales}`));
   }
 
-  // Variant mappings: server code → list of local codes, auto-detected from
-  // the chosen pattern. Nothing is asked when there are no variants.
-  let localeMap = detectLocaleVariants(cwd, locales);
-
-  // If variants were detected, ask once whether to map them. Nothing is shown
-  // about variants when there are none.
-  if (Object.keys(localeMap).length > 0) {
-    console.log();
-    console.log(kleur.bold('Detected locale variants:'));
-    for (const [serverCode, localCodes] of Object.entries(localeMap)) {
-      for (const localCode of localCodes) {
-        console.log(`  ${kleur.yellow(localCode + '.json')}  pulls from  ${kleur.gray('server ' + serverCode)}`);
-      }
-    }
-    const variantAnswer = await prompts(
-      {
-        type: 'confirm',
-        name: 'useVariants',
-        message: 'Map these locale variants?',
-        initial: true,
-      },
-      { onCancel }
-    );
-    if (!variantAnswer.useVariants) localeMap = {};
-  }
-
   // Preview how the config will behave.
   console.log();
   console.log(kleur.bold('Preview:'));
   console.log(`  ${kleur.cyan(locales)}`);
-  if (Object.keys(localeMap).length > 0) {
-    for (const [serverCode, localCodes] of Object.entries(localeMap)) {
-      for (const localCode of localCodes) {
-        console.log(`    ${kleur.yellow(localCode + '.json')}  pulls from  ${kleur.gray('server ' + serverCode)}`);
-      }
-    }
-    console.log(`    ${kleur.gray('(other locales use the default {locale}.json)')}`);
-  } else {
-    console.log(`    ${kleur.gray('(each locale writes {locale}.json)')}`);
-  }
+  console.log(`    ${kleur.gray('(each locale writes {locale}.json)')}`);
   console.log();
 
   const confirm = await prompts(
@@ -375,7 +278,7 @@ export async function runInit(): Promise<void> {
     console.log(kleur.yellow(`✱ ${path} already exists. Cancelled.`));
     return;
   }
-  writeFileSync(path, TEMPLATE(locales, localeMap), 'utf8');
+  writeFileSync(path, TEMPLATE(locales), 'utf8');
 
   console.log();
   console.log(kleur.green('✓'), `created ${kleur.bold('api18n.config.ts')}`);

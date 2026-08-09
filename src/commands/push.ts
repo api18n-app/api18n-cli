@@ -4,6 +4,7 @@ import { BACKEND_URL, DASHBOARD_URL, loadConfig } from '../config.js';
 import { withSpinner } from '../spinner.js';
 import { resolveToken } from '../credentials.js';
 import { computeTranslationDiff } from '../diff.js';
+import { getExperimentalLanguageCodes } from '../language-stability.js';
 import {
   buildLocalePath,
   flatten,
@@ -46,26 +47,28 @@ export async function runPush(options: PushOptions = {}): Promise<void> {
   const languages = includeSet
     ? server.languages.filter((l) => includeSet.has(l.code))
     : server.languages;
+  const experimentalCodes = getExperimentalLanguageCodes(languages);
+  if (experimentalCodes.length > 0) {
+    console.warn(
+      kleur.yellow(
+        `⚠ Experimental locales: ${experimentalCodes.join(', ')}. They are supported, but experimental.`,
+      ),
+    );
+  }
 
   const localByKey = new Map<string, Record<string, string | null>>();
   const missingFiles: string[] = [];
 
   for (const lang of languages) {
-    // ponytail: localeMap merges N local files into one server column; last file wins
-    const localCodes = config.localeMap[lang.code] ?? [lang.code];
-    let merged: Record<string, string> = {};
-    let foundAny = false;
-    for (const localCode of localCodes) {
-      const path = buildLocalePath(config.rootDir, config.locales, localCode);
-      const content = readJsonFile(path);
-      if (content === null) continue;
-      foundAny = true;
-      merged = { ...merged, ...flatten(content) };
-    }
-    if (!foundAny) {
-      missingFiles.push(buildLocalePath(config.rootDir, config.locales, localCodes[0]));
+    // Each server language reads from its own {locale}.json file.
+    const localCode = lang.code;
+    const path = buildLocalePath(config.rootDir, config.locales, localCode);
+    const content = readJsonFile(path);
+    if (content === null) {
+      missingFiles.push(path);
       continue;
     }
+    const merged = flatten(content);
     for (const [key, value] of Object.entries(merged)) {
       let entry = localByKey.get(key);
       if (!entry) {
@@ -132,7 +135,10 @@ export async function runPush(options: PushOptions = {}): Promise<void> {
     );
   } catch (err) {
     if (err instanceof ApiError) {
-      console.error(kleur.red(`Couldn't submit proposal (${err.status}): ${err.message}`));
+      const unsupported = err.unsupportedCodes?.length
+        ? ` Unsupported locales: ${err.unsupportedCodes.join(', ')}.`
+        : '';
+      console.error(kleur.red(`Couldn't submit proposal (${err.status}): ${err.message}${unsupported}`));
     } else {
       console.error(kleur.red(err instanceof Error ? err.message : String(err)));
     }

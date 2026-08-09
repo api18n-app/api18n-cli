@@ -5,6 +5,7 @@ import { resolveToken } from '../credentials.js';
 import { computeTranslationDiff } from '../diff.js';
 import { buildLocalePath, flatten, readJsonFile } from '../files.js';
 import { withSpinner } from '../spinner.js';
+import { getExperimentalLanguageCodes } from '../language-stability.js';
 import type { ProposalSummary, TranslationDataset } from '../types.js';
 
 export async function runStatus(): Promise<void> {
@@ -44,6 +45,14 @@ export async function runStatus(): Promise<void> {
 
   // Pending proposals first
   console.log();
+  const experimentalCodes = getExperimentalLanguageCodes(server.languages);
+  if (experimentalCodes.length > 0) {
+    console.warn(
+      kleur.yellow(
+        `⚠ Experimental locales: ${experimentalCodes.join(', ')}. They are supported, but experimental.`,
+      ),
+    );
+  }
   if (pending.length === 0) {
     console.log(kleur.gray('No pending proposals.'));
   } else {
@@ -61,15 +70,12 @@ export async function runStatus(): Promise<void> {
   // Local-vs-server drift
   const localByKey = new Map<string, Record<string, string | null>>();
   for (const lang of server.languages) {
-    // ponytail: localeMap merges N local files into one server column; last file wins
-    const localCodes = config.localeMap[lang.code] ?? [lang.code];
-    let merged: Record<string, string> = {};
-    for (const localCode of localCodes) {
-      const path = buildLocalePath(config.rootDir, config.locales, localCode);
-      const content = readJsonFile(path);
-      if (!content) continue;
-      merged = { ...merged, ...flatten(content) };
-    }
+    // Each server language reads from its own {locale}.json file.
+    const localCode = lang.code;
+    const path = buildLocalePath(config.rootDir, config.locales, localCode);
+    const content = readJsonFile(path);
+    if (!content) continue;
+    const merged = flatten(content);
     for (const [key, value] of Object.entries(merged)) {
       let entry = localByKey.get(key);
       if (!entry) {
