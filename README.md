@@ -70,6 +70,7 @@ api18n pull
 | `api18n push -m "..."`       | Attach a summary to the proposal                                                                                                                         |
 | `api18n push --dry-run`      | Show the diff without submitting                                                                                                                         |
 | `api18n status`              | Show pending proposals and local-vs-server drift                                                                                                         |
+| `api18n types`               | Regenerate the SDK's `messages.d.ts` without pulling files                                                                                               |
 | `api18n proposals list`      | List recent proposals                                                                                                                                    |
 | `api18n proposals show <id>` | Print a single proposal's full diff                                                                                                                      |
 
@@ -92,6 +93,34 @@ Pulled files are JSON, one per locale, nested by dot-segments of the key:
 }
 ```
 
-This matches the conventions used by `next-intl`, `i18next`, and most
-JavaScript i18n libraries. Empty (`null`) translations are omitted from
+String values work as before. A translation can also be a finite number, a
+boolean, or an array. Arrays are atomic values (their indexes do not become
+dot-notation keys) and can contain JSON scalars, nested arrays, objects, and
+`null`:
+
+```json
+{
+  "checkout": {
+    "enabled": true,
+    "maximumItems": 8,
+    "benefits": [
+      "Free returns",
+      { "label": "Priority support", "featured": true }
+    ]
+  }
+}
+```
+
+Plain objects outside arrays remain namespaces, so `checkout.enabled` is the
+translation key in this example. Empty (`null`) translations are omitted from
 the output so missing keys don't show up as JSON `null`s.
+
+The CLI requests dataset schema v2 and preserves these values through pull,
+status, type generation, and proposal diffs. It still accepts string-only v1
+datasets from older servers. For safety, pushing a structured local value to a
+v1 server stops with an upgrade message instead of coercing or losing data.
+
+When type generation is enabled, structured keys are included in
+`messages.d.ts` so the runtime SDK's `t.raw(...)` method returns their inferred
+number, boolean, tuple, or object-array shape. The callable `t(...)` API remains
+for string messages and ICU formatting.

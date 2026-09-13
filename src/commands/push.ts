@@ -11,6 +11,8 @@ import {
   readJsonFile,
 } from '../files.js';
 import type { TranslationDataset } from '../types.js';
+import { assertDatasetIsComplete } from '../dataset.js';
+import type { TranslationValues } from '../translation-values.js';
 
 export interface PushOptions {
   dryRun?: boolean;
@@ -33,6 +35,7 @@ export async function runPush(options: PushOptions = {}): Promise<void> {
   let server: TranslationDataset;
   try {
     server = await withSpinner('Fetching translations…', () => client.dataset());
+    assertDatasetIsComplete(server, 'push');
   } catch (err) {
     if (err instanceof ApiError) {
       console.error(kleur.red(`Couldn't fetch server dataset (${err.status}): ${err.message}`));
@@ -47,6 +50,12 @@ export async function runPush(options: PushOptions = {}): Promise<void> {
   const languages = includeSet
     ? server.languages.filter((l) => includeSet.has(l.code))
     : server.languages;
+  if (languages.length === 0) {
+    console.error(
+      kleur.red('None of the locales in config.include exist in the server dataset.'),
+    );
+    process.exit(1);
+  }
   const experimentalCodes = getExperimentalLanguageCodes(languages);
   if (experimentalCodes.length > 0) {
     console.warn(
@@ -56,8 +65,9 @@ export async function runPush(options: PushOptions = {}): Promise<void> {
     );
   }
 
-  const localByKey = new Map<string, Record<string, string | null>>();
+  const localByKey = new Map<string, TranslationValues>();
   const missingFiles: string[] = [];
+  const loadedLanguageCodes: string[] = [];
 
   for (const lang of languages) {
     // Each server language reads from its own {locale}.json file.
@@ -68,6 +78,7 @@ export async function runPush(options: PushOptions = {}): Promise<void> {
       missingFiles.push(path);
       continue;
     }
+    loadedLanguageCodes.push(lang.code);
     const merged = flatten(content);
     for (const [key, value] of Object.entries(merged)) {
       let entry = localByKey.get(key);
@@ -84,8 +95,19 @@ export async function runPush(options: PushOptions = {}): Promise<void> {
     console.error(kleur.gray('Run `api18n pull` first, or create the files manually.'));
     process.exit(1);
   }
+  if (missingFiles.length > 0) {
+    console.warn(
+      kleur.yellow(
+        `Skipped ${missingFiles.length} missing locale file${missingFiles.length === 1 ? '' : 's'}; their server values will be preserved.`,
+      ),
+    );
+  }
 
-  const diff = computeTranslationDiff(server, localByKey);
+  const diff = computeTranslationDiff(server, localByKey, {
+    // A missing file is not evidence that all translations in that locale
+    // should be cleared. Only columns we actually read are writable.
+    languages: loadedLanguageCodes,
+  });
   const total = diff.create.length + diff.update.length + diff.delete.length;
 
   console.log();

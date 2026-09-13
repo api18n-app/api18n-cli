@@ -4,6 +4,10 @@ import { BACKEND_URL, loadConfig } from "../config.js";
 import { resolveToken } from "../credentials.js";
 import { withSpinner } from "../spinner.js";
 import type { ProposalStatus, ProposalSummary } from "../types.js";
+import {
+  formatTranslationValue,
+  type TranslationValue,
+} from '../translation-values.js';
 
 const STATUSES: ProposalStatus[] = [
   "pending",
@@ -138,7 +142,7 @@ export async function runProposalsShow(
       console.log(`  ${kleur.bold(c.key)}`);
       for (const [lang, val] of Object.entries(c.values)) {
         if (val === null) continue;
-        console.log(`    ${kleur.gray(lang.padEnd(4))} ${val}`);
+        printCreatedValue(lang, val);
       }
     }
   }
@@ -148,12 +152,7 @@ export async function runProposalsShow(
     for (const u of diff.update) {
       console.log(`  ${kleur.bold(u.key)}`);
       for (const c of u.changes) {
-        console.log(
-          `    ${kleur.gray(c.languageCode.padEnd(4))} ` +
-            kleur.red(`${c.from ?? "—"}`) +
-            kleur.gray(" → ") +
-            kleur.green(`${c.to ?? "—"}`),
-        );
+        printChangedValue(c.languageCode, c.from, c.to);
       }
     }
   }
@@ -171,6 +170,50 @@ export async function runProposalsShow(
   ) {
     console.log(kleur.gray("  (empty diff)"));
   }
+}
+
+function printCreatedValue(languageCode: string, value: TranslationValue): void {
+  const prefix = `    ${languageCode.padEnd(4)} `;
+  console.log(
+    kleur.gray(prefix.slice(0, -1)) +
+      ' ' +
+      indentContinuation(formatTranslationValue(value), ' '.repeat(prefix.length)),
+  );
+}
+
+function printChangedValue(
+  languageCode: string,
+  from: TranslationValue | null,
+  to: TranslationValue | null,
+): void {
+  const fromText = formatTranslationValue(from);
+  const toText = formatTranslationValue(to);
+  if (!fromText.includes('\n') && !toText.includes('\n')) {
+    console.log(
+      `    ${kleur.gray(languageCode.padEnd(4))} ` +
+        kleur.red(fromText) +
+        kleur.gray(' → ') +
+        kleur.green(toText),
+    );
+    return;
+  }
+  console.log(`    ${kleur.gray(languageCode)}`);
+  printLabeledValue('from', fromText, kleur.red);
+  printLabeledValue('to', toText, kleur.green);
+}
+
+function printLabeledValue(
+  label: string,
+  value: string,
+  color: (text: string) => string,
+): void {
+  const prefix = `      ${label.padEnd(5)} `;
+  const formatted = indentContinuation(value, ' '.repeat(prefix.length));
+  console.log(kleur.gray(prefix) + color(formatted));
+}
+
+export function indentContinuation(value: string, indentation: string): string {
+  return value.replace(/\n/g, `\n${indentation}`);
 }
 
 function statusBadge(status: ProposalStatus): string {

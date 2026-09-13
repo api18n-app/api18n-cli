@@ -117,6 +117,36 @@ describe('applyServerToRaw', () => {
     expect(text).toContain('"button": {');
   });
 
+  it('writes structured values as JSON without string coercion', () => {
+    const raw = `{
+  "steps": ["First", { "label": "Second" }],
+  "enabled": true
+}
+`;
+    const { text, changed } = applyServerToRaw(raw, {
+      steps: ['First', { label: 'Updated' }],
+      enabled: false,
+    })!;
+
+    expect(changed).toBe(true);
+    expect(readJsonFileFromText(text)).toEqual({
+      steps: ['First', { label: 'Updated' }],
+      enabled: false,
+    });
+  });
+
+  it('treats reordered keys inside array objects as a no-op', () => {
+    const raw = `{
+  "cards": [{ "title": "One", "rank": 1 }]
+}
+`;
+    const result = applyServerToRaw(raw, {
+      cards: [{ rank: 1, title: 'One' }],
+    })!;
+
+    expect(result).toEqual({ text: raw, changed: false });
+  });
+
   it('returns null when a file key is absent from desired (removal case)', () => {
     const res = applyServerToRaw(COMMENTED, {
       greeting: 'Hi',
@@ -138,3 +168,7 @@ describe('applyServerToRaw', () => {
     expect(applyServerToRaw(COMMENTED, {})).toBeNull();
   });
 });
+
+function readJsonFileFromText(text: string): unknown {
+  return JSON.parse(text);
+}

@@ -16,6 +16,8 @@ import { withSpinner } from '../spinner.js';
 import { relativeOut, writeTypes } from '../typegen-runner.js';
 import { getExperimentalLanguageCodes } from '../language-stability.js';
 import type { TranslationDataset, TranslationRow } from '../types.js';
+import { assertDatasetIsComplete } from '../dataset.js';
+import type { TranslationValue } from '../translation-values.js';
 
 export interface PullOptions {
   dryRun?: boolean;
@@ -48,6 +50,7 @@ export async function runPull(options: PullOptions = {}): Promise<void> {
   let dataset: TranslationDataset;
   try {
     dataset = await withSpinner('Fetching translations…', () => client.dataset());
+    assertDatasetIsComplete(dataset, 'pull');
   } catch (err) {
     if (err instanceof ApiError) {
       console.error(kleur.red(`Couldn't fetch dataset (${err.status}): ${err.message}`));
@@ -81,14 +84,6 @@ export async function runPull(options: PullOptions = {}): Promise<void> {
     );
   }
 
-  if (dataset.truncated) {
-    console.warn(
-      kleur.yellow(
-        `⚠ Dataset response was truncated — your project exceeds the per-request row cap. Contact api18n support.`
-      )
-    );
-  }
-
   type Outcome = 'created' | 'updated' | 'unchanged';
   const summary: Record<Outcome, string[]> = {
     created: [],
@@ -97,7 +92,7 @@ export async function runPull(options: PullOptions = {}): Promise<void> {
   };
 
   for (const lang of languages) {
-    const flat: Record<string, string | null> = {};
+    const flat: Record<string, TranslationValue | null> = {};
     for (const row of dataset.rows as TranslationRow[]) {
       flat[row.key] = row.values[lang.code] ?? null;
     }

@@ -11,6 +11,11 @@ import {
   type Edit,
   type ParseError,
 } from 'jsonc-parser';
+import {
+  isTranslationValue,
+  translationValueEquals,
+  type TranslationValue,
+} from './translation-values.js';
 
 /**
  * Build a nested object from flat dot-notation keys.
@@ -19,10 +24,15 @@ import {
  * Null / undefined values are skipped so missing translations don't end up
  * as JSON nulls in the output.
  */
-export function unflatten(entries: Record<string, string | null>): Record<string, unknown> {
+export function unflatten(
+  entries: Record<string, TranslationValue | null>,
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(entries)) {
     if (value === null || value === undefined) continue;
+    if (!isTranslationValue(value)) {
+      throw new Error(`Invalid translation value for "${key}".`);
+    }
     const segments = key.split('.').filter((s) => s.length > 0);
     if (segments.length === 0) continue;
     let cursor: Record<string, unknown> = out;
@@ -46,17 +56,19 @@ export function unflatten(entries: Record<string, string | null>): Record<string
 export function flatten(
   obj: Record<string, unknown>,
   prefix = '',
-  out: Record<string, string> = {}
-): Record<string, string> {
+  out: Record<string, TranslationValue> = {},
+): Record<string, TranslationValue> {
   for (const [key, value] of Object.entries(obj)) {
     const fullKey = prefix ? `${prefix}.${key}` : key;
     if (value === null || value === undefined) continue;
-    if (typeof value === 'object' && !Array.isArray(value)) {
+    if (isPlainObject(value)) {
       flatten(value as Record<string, unknown>, fullKey, out);
-    } else if (typeof value === 'string') {
+    } else if (isTranslationValue(value)) {
       out[fullKey] = value;
     } else {
-      out[fullKey] = String(value);
+      throw new Error(
+        `Invalid translation value for "${fullKey}". Use a string, finite number, boolean, or array; plain objects are namespaces.`,
+      );
     }
   }
   return out;
@@ -155,7 +167,7 @@ export function keyToJsonPath(key: string): string[] {
  */
 export function applyServerToRaw(
   raw: string,
-  desired: Record<string, string | null>,
+  desired: Record<string, TranslationValue | null>,
   options: { indent?: string } = {},
 ): { text: string; changed: boolean } | null {
   const indent = options.indent ?? detectIndent(raw);
@@ -184,7 +196,7 @@ export function applyServerToRaw(
     // Skip no-op edits: same value → leave the original text alone, which
     // both avoids churn and prevents overlapping no-op edits when appending.
     const node = findNodeAtLocation(tree, jsonPath);
-    if (node && getNodeValue(node) === value) continue;
+    if (node && translationValueEquals(getNodeValue(node), value)) continue;
     edits.push(...modify(raw, jsonPath, value, { formattingOptions }));
   }
 
@@ -242,7 +254,7 @@ export function mergePreservingOrder(
     } else if (inc === undefined) {
       // unflatten never emits undefined, but guard anyway
       changed = true;
-    } else if (ex !== inc) {
+    } else if (!translationValueEquals(ex, inc)) {
       result[key] = inc;
       changed = true;
     } else {

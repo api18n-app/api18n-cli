@@ -3,6 +3,7 @@ import { dirname, resolve, relative } from 'node:path';
 import { inferSchemas, renderMessagesDts } from './typegen.js';
 import type { ResolvedConfig } from './config.js';
 import type { TranslationDataset, DatasetLanguage, TranslationRow } from './types.js';
+import type { TranslationValue } from './translation-values.js';
 
 export interface TypegenWriteResult {
   outPath: string;
@@ -16,7 +17,7 @@ export interface TypegenWriteResult {
  */
 export function writeTypes(config: ResolvedConfig, dataset: TranslationDataset): TypegenWriteResult {
   const baseLocale = pickBaseLocale(config, dataset);
-  const flat: Record<string, string | null> = {};
+  const flat: Record<string, TranslationValue | null> = {};
   for (const row of dataset.rows as TranslationRow[]) {
     flat[row.key] = row.values[baseLocale] ?? null;
   }

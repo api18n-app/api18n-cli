@@ -32,8 +32,22 @@ describe('flatten', () => {
     });
   });
 
-  it('stringifies non-string primitives at leaves', () => {
-    expect(flatten({ count: 7 as unknown as string })).toEqual({ count: '7' });
+  it('preserves primitive values at leaves', () => {
+    expect(flatten({ count: 7, enabled: false })).toEqual({
+      count: 7,
+      enabled: false,
+    });
+  });
+
+  it('keeps arrays atomic, including nested objects and arrays', () => {
+    const steps = [
+      'First',
+      { label: 'Second', flags: [true, false], metadata: { rank: 2 } },
+    ];
+
+    expect(flatten({ onboarding: { steps } })).toEqual({
+      'onboarding.steps': steps,
+    });
   });
 
   it('returns an empty object for an empty input', () => {
@@ -65,6 +79,20 @@ describe('unflatten', () => {
       button: { cancel: 'Cancel', save: 'Save' },
       app: { title: 'Hello', meta: { author: 'Eduardo' } },
     };
+    expect(unflatten(flatten(original))).toEqual(original);
+  });
+
+  it('round-trips structured translation values without loss', () => {
+    const original = {
+      limits: { maximum: 8, enabled: true },
+      onboarding: {
+        steps: [
+          'Create an account',
+          { title: 'Invite teammates', optional: false },
+        ],
+      },
+    };
+
     expect(unflatten(flatten(original))).toEqual(original);
   });
 });
@@ -181,6 +209,20 @@ describe('mergePreservingOrder', () => {
     const { result, changed } = mergePreservingOrder(existing, incoming);
     expect(Object.keys(result)).toEqual(['button', 'top']);
     expect(Object.keys(result.button as object)).toEqual(['z', 'a']);
+    expect(changed).toBe(false);
+  });
+
+  it('reports no change for deeply equal atomic arrays with reordered object keys', () => {
+    const existing = {
+      cards: [{ title: 'One', meta: { rank: 1, active: true } }],
+    };
+    const incoming = {
+      cards: [{ meta: { active: true, rank: 1 }, title: 'One' }],
+    };
+
+    const { result, changed } = mergePreservingOrder(existing, incoming);
+
+    expect(result).toEqual(existing);
     expect(changed).toBe(false);
   });
 

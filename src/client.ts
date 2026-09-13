@@ -5,6 +5,7 @@ import type {
   TranslationDataset,
   TranslationDiff,
 } from "./types.js";
+import { parseTranslationDataset } from './dataset.js';
 
 export class ApiError extends Error {
   constructor(
@@ -106,8 +107,11 @@ export class Api18nClient {
     return this.request<CliMeResponse>("/cli/me");
   }
 
-  dataset(): Promise<TranslationDataset> {
-    return this.request<TranslationDataset>("/cli/dataset");
+  async dataset(): Promise<TranslationDataset> {
+    // Opt into the structured-value protocol. Older servers that ignore the
+    // query parameter can still return a valid v1 dataset, which we accept.
+    const body = await this.request<unknown>("/cli/dataset?schemaVersion=2");
+    return parseTranslationDataset(body);
   }
 
   async listProposals(status?: ProposalStatus): Promise<ProposalSummary[]> {
