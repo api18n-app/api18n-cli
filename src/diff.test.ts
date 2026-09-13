@@ -1,10 +1,22 @@
-import { describe, it, expect } from 'vitest';
-import { computeTranslationDiff } from './diff.js';
-import { TRANSLATION_DIFF_SCHEMA_VERSION, type TranslationDataset } from './types.js';
+import { describe, expect, it } from 'vitest';
+import {
+  computeTranslationDiff,
+  StructuredValuesRequireV2Error,
+} from './diff.js';
+import {
+  LEGACY_TRANSLATION_DIFF_SCHEMA_VERSION,
+  TRANSLATION_DIFF_SCHEMA_VERSION,
+  type TranslationDataset,
+  type TranslationValues,
+} from './types.js';
 
-function makeDataset(rows: Array<{ key: string; values: Record<string, string | null> }>, langs: string[] = ['en']): TranslationDataset {
+function makeDataset(
+  rows: Array<{ key: string; values: TranslationValues }>,
+  langs: string[] = ['en'],
+  schemaVersion: 1 | 2 = 2,
+): TranslationDataset {
   return {
-    schemaVersion: 1,
+    schemaVersion,
     company: { id: 'co-1', name: 'Test' },
     baseLanguage: { code: 'en', name: 'English' },
     languages: langs.map((code) => ({
@@ -13,14 +25,14 @@ function makeDataset(rows: Array<{ key: string; values: Record<string, string | 
       stability: code === 'en' ? 'stable' : 'experimental',
       isBase: code === 'en',
     })),
-    rows: rows.map((r) => ({ key: r.key, referenceName: null, values: r.values })),
+    rows: rows.map((row) => ({ ...row, referenceName: null })),
     truncated: false,
     exportedAt: '2026-05-09T00:00:00.000Z',
   };
 }
 
 describe('computeTranslationDiff', () => {
-  it('returns an empty diff when local matches the server', () => {
+  it('returns an empty v2 diff when local matches the server', () => {
     const server = makeDataset([
       { key: 'a.b', values: { en: 'Hello' } },
       { key: 'a.c', values: { en: 'World' } },
@@ -29,108 +41,180 @@ describe('computeTranslationDiff', () => {
       ['a.b', { en: 'Hello' }],
       ['a.c', { en: 'World' }],
     ]);
+
     const diff = computeTranslationDiff(server, local);
+
     expect(diff.schemaVersion).toBe(TRANSLATION_DIFF_SCHEMA_VERSION);
     expect(diff.create).toEqual([]);
     expect(diff.update).toEqual([]);
     expect(diff.delete).toEqual([]);
   });
 
-  it('flags new local-only keys as creates', () => {
-    const server = makeDataset([{ key: 'existing', values: { en: 'Hi' } }]);
-    const local = new Map([
-      ['existing', { en: 'Hi' }],
-      ['brand-new', { en: 'Fresh' }],
-    ]);
-    const diff = computeTranslationDiff(server, local);
-    expect(diff.create).toEqual([
-      { key: 'brand-new', values: { en: 'Fresh' } },
-    ]);
-    expect(diff.update).toEqual([]);
-    expect(diff.delete).toEqual([]);
-  });
-
-  it('flags removed local keys as deletes', () => {
-    const server = makeDataset([
-      { key: 'gone', values: { en: 'Goodbye' } },
-      { key: 'stay', values: { en: 'Here' } },
-    ]);
-    const local = new Map([['stay', { en: 'Here' }]]);
-    const diff = computeTranslationDiff(server, local);
-    expect(diff.delete).toEqual([{ key: 'gone' }]);
-    expect(diff.create).toEqual([]);
-    expect(diff.update).toEqual([]);
-  });
-
-  it('flags changed values as updates with before/after per language', () => {
+  it('emits v1 diffs for legacy string-only datasets', () => {
     const server = makeDataset(
-      [{ key: 'greeting', values: { en: 'Hi', pt: 'Olá' } }],
-      ['en', 'pt'],
+      [{ key: 'greeting', values: { en: 'Hi' } }],
+      ['en'],
+      1,
     );
-    const local = new Map([['greeting', { en: 'Hello', pt: 'Olá' }]]);
-    const diff = computeTranslationDiff(server, local);
+
+    const diff = computeTranslationDiff(
+      server,
+      new Map([['greeting', { en: 'Hello' }]]),
+    );
+
+    expect(diff.schemaVersion).toBe(LEGACY_TRANSLATION_DIFF_SCHEMA_VERSION);
     expect(diff.update).toEqual([
       {
         key: 'greeting',
         changes: [{ languageCode: 'en', from: 'Hi', to: 'Hello' }],
       },
     ]);
-    expect(diff.create).toEqual([]);
-    expect(diff.delete).toEqual([]);
   });
 
-  it('treats null and empty string as the same "no value"', () => {
+  it('flags creates, updates, and deletes', () => {
+    const server = makeDataset([
+      { key: 'changed', values: { en: 'Before' } },
+      { key: 'gone', values: { en: 'Goodbye' } },
+    ]);
+    const local = new Map<string, TranslationValues>([
+      ['changed', { en: 'After' }],
+      ['new', { en: 'Fresh' }],
+    ]);
+
+    const diff = computeTranslationDiff(server, local);
+
+    expect(diff.create).toEqual([{ key: 'new', values: { en: 'Fresh' } }]);
+    expect(diff.update).toEqual([
+      {
+        key: 'changed',
+        changes: [{ languageCode: 'en', from: 'Before', to: 'After' }],
+      },
+    ]);
+    expect(diff.delete).toEqual([{ key: 'gone' }]);
+  });
+
+  it('preserves structured create and update values', () => {
+    const server = makeDataset([
+      {
+        key: 'steps',
+        values: { en: ['First', { label: 'Second', enabled: true }] },
+      },
+    ]);
+    const local = new Map<string, TranslationValues>([
+      ['steps', { en: ['First', { label: 'Updated', enabled: true }] }],
+      ['limits', { en: 5 }],
+    ]);
+
+    const diff = computeTranslationDiff(server, local);
+
+    expect(diff.create).toEqual([{ key: 'limits', values: { en: 5 } }]);
+    expect(diff.update).toEqual([
+      {
+        key: 'steps',
+        changes: [
+          {
+            languageCode: 'en',
+            from: ['First', { label: 'Second', enabled: true }],
+            to: ['First', { label: 'Updated', enabled: true }],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('compares nested objects deeply without depending on property order', () => {
+    const server = makeDataset([
+      {
+        key: 'cards',
+        values: { en: [{ title: 'One', meta: { rank: 1, active: true } }] },
+      },
+    ]);
+    const local = new Map<string, TranslationValues>([
+      ['cards', { en: [{ meta: { active: true, rank: 1 }, title: 'One' }] }],
+    ]);
+
+    expect(computeTranslationDiff(server, local).update).toEqual([]);
+  });
+
+  it('treats array order as meaningful', () => {
+    const server = makeDataset([
+      { key: 'steps', values: { en: ['First', 'Second'] } },
+    ]);
+    const local = new Map<string, TranslationValues>([
+      ['steps', { en: ['Second', 'First'] }],
+    ]);
+
+    expect(computeTranslationDiff(server, local).update).toHaveLength(1);
+  });
+
+  it('refuses structured pushes against a v1 dataset', () => {
+    const server = makeDataset([], ['en'], 1);
+    const local = new Map<string, TranslationValues>([
+      ['steps', { en: ['First', 'Second'] }],
+    ]);
+
+    expect(() => computeTranslationDiff(server, local)).toThrow(
+      StructuredValuesRequireV2Error,
+    );
+  });
+
+  it('treats null and empty string as the same missing value', () => {
     const server = makeDataset(
       [{ key: 'optional', values: { en: 'A', pt: null } }],
       ['en', 'pt'],
     );
-    const local = new Map([['optional', { en: 'A', pt: '' }]]);
-    const diff = computeTranslationDiff(server, local);
-    expect(diff.update).toEqual([]);
+    const local = new Map<string, TranslationValues>([
+      ['optional', { en: 'A', pt: '' }],
+    ]);
+
+    expect(computeTranslationDiff(server, local).update).toEqual([]);
   });
 
-  it("doesn't create a row that is entirely null on local", () => {
+  it('does not create a row that is entirely null locally', () => {
     const server = makeDataset([], ['en', 'pt']);
-    const local = new Map<string, Record<string, string | null>>([
+    const local = new Map<string, TranslationValues>([
       ['empty.key', { en: null, pt: null }],
     ]);
-    const diff = computeTranslationDiff(server, local);
-    expect(diff.create).toEqual([]);
+
+    expect(computeTranslationDiff(server, local).create).toEqual([]);
   });
 
-  it('handles multi-language updates touching only some columns', () => {
+  it('only writes included languages and preserves excluded columns', () => {
     const server = makeDataset(
-      [{ key: 'k', values: { en: 'A', pt: 'B', es: 'C' } }],
-      ['en', 'pt', 'es'],
-    );
-    const local = new Map([['k', { en: 'A', pt: 'B-new', es: 'C-new' }]]);
-    const diff = computeTranslationDiff(server, local);
-    expect(diff.update).toHaveLength(1);
-    const changes = diff.update[0].changes.map((c) => c.languageCode).sort();
-    expect(changes).toEqual(['es', 'pt']);
-  });
-
-  it('preserves the languages list from the server in the resulting diff', () => {
-    const server = makeDataset([], ['en', 'pt', 'es']);
-    const local = new Map<string, Record<string, string | null>>();
-    const diff = computeTranslationDiff(server, local);
-    expect(diff.languages).toEqual(['en', 'pt', 'es']);
-  });
-
-  it('treats missing local language as a delete to the value (null → no change if server is also null)', () => {
-    const server = makeDataset(
-      [{ key: 'k', values: { en: 'A', pt: 'B' } }],
+      [
+        { key: 'changed', values: { en: 'Before', pt: 'Antes' } },
+        { key: 'missing-locally', values: { en: 'Delete me', pt: 'Keep me' } },
+      ],
       ['en', 'pt'],
     );
-    // Local has en only — pt is absent (undefined), which normalize() treats as null
-    const local = new Map([['k', { en: 'A' }]]);
-    const diff = computeTranslationDiff(server, local);
-    // pt: was "B", local is undefined → null → from "B" to null
+    const local = new Map<string, TranslationValues>([
+      ['changed', { en: 'After' }],
+    ]);
+
+    const diff = computeTranslationDiff(server, local, { languages: ['en'] });
+
+    expect(diff.languages).toEqual(['en']);
     expect(diff.update).toEqual([
       {
-        key: 'k',
-        changes: [{ languageCode: 'pt', from: 'B', to: null }],
+        key: 'changed',
+        changes: [{ languageCode: 'en', from: 'Before', to: 'After' }],
       },
+      {
+        key: 'missing-locally',
+        changes: [{ languageCode: 'en', from: 'Delete me', to: null }],
+      },
+    ]);
+    expect(diff.delete).toEqual([]);
+  });
+
+  it('removes entire rows only when every server language is writable', () => {
+    const server = makeDataset(
+      [{ key: 'gone', values: { en: 'Bye', pt: 'Tchau' } }],
+      ['en', 'pt'],
+    );
+
+    expect(computeTranslationDiff(server, new Map()).delete).toEqual([
+      { key: 'gone' },
     ]);
   });
 });

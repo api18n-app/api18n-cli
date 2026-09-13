@@ -1,9 +1,12 @@
+import type { TranslationValue, TranslationValues } from './translation-values.js';
+
 /**
  * Shape of the dataset the api18n server returns from /api/cli/dataset.
  * Mirrors what `src/services/translationDataset.ts` builds on the dashboard.
  */
 export interface TranslationDataset {
-  schemaVersion: 1;
+  /** V1 is string-only; V2 supports the full TranslationValue domain. */
+  schemaVersion: 1 | 2;
   company: { id: string; name: string };
   baseLanguage: { code: string; name: string };
   languages: DatasetLanguage[];
@@ -22,7 +25,7 @@ export interface DatasetLanguage {
 export interface TranslationRow {
   key: string;
   referenceName: string | null;
-  values: Record<string, string | null>;
+  values: TranslationValues;
 }
 
 export interface CliMeResponse {
@@ -42,18 +45,31 @@ export interface CliMeResponse {
  * `src/services/translationDiff.ts` shape exactly. Stored verbatim in
  * `translation_proposals.diff`.
  */
-export const TRANSLATION_DIFF_SCHEMA_VERSION = 1;
+export const LEGACY_TRANSLATION_DIFF_SCHEMA_VERSION = 1 as const;
+export const TRANSLATION_DIFF_SCHEMA_VERSION = 2 as const;
 
-export interface TranslationDiff {
-  schemaVersion: typeof TRANSLATION_DIFF_SCHEMA_VERSION;
-  create: Array<{ key: string; values: Record<string, string | null> }>;
+interface TranslationDiffBase<TValue> {
+  create: Array<{ key: string; values: Record<string, TValue> }>;
   update: Array<{
     key: string;
-    changes: Array<{ languageCode: string; from: string | null; to: string | null }>;
+    changes: Array<{ languageCode: string; from: TValue; to: TValue }>;
   }>;
   delete: Array<{ key: string }>;
   languages: string[];
 }
+
+export interface TranslationDiffV1 extends TranslationDiffBase<string | null> {
+  schemaVersion: typeof LEGACY_TRANSLATION_DIFF_SCHEMA_VERSION;
+}
+
+export interface TranslationDiffV2
+  extends TranslationDiffBase<TranslationValue | null> {
+  schemaVersion: typeof TRANSLATION_DIFF_SCHEMA_VERSION;
+}
+
+export type TranslationDiff = TranslationDiffV1 | TranslationDiffV2;
+
+export type { TranslationValue, TranslationValues } from './translation-values.js';
 
 export type ProposalStatus = 'pending' | 'approved' | 'rejected' | 'superseded';
 

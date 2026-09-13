@@ -3,6 +3,12 @@ import {
   TYPE,
   type MessageFormatElement,
 } from "@formatjs/icu-messageformat-parser";
+import type {
+  TranslationArray,
+  TranslationArrayItem,
+  TranslationArrayObject,
+  TranslationValue,
+} from './translation-values.js';
 
 export interface KeyArgType {
   /** Name of the argument as referenced in the message string. */
@@ -14,8 +20,8 @@ export interface KeyArgType {
 export interface KeySchema {
   /** Dot-notation key, e.g. "checkout.confirm". */
   key: string;
-  /** Raw message string from the base locale, used as the `__raw` literal. */
-  raw: string;
+  /** Raw value from the base locale, used to type `t.raw(...)`. */
+  raw: TranslationValue;
   /** Inferred argument types for the message, deduped by name. */
   args: KeyArgType[];
 }
@@ -25,12 +31,14 @@ export interface KeySchema {
  * Bad/unparseable strings still emit an entry with no args (so missing
  * keys still type-check as usable; we just lose argument inference).
  */
-export function inferSchemas(flat: Record<string, string | null>): KeySchema[] {
+export function inferSchemas(
+  flat: Record<string, TranslationValue | null>,
+): KeySchema[] {
   const out: KeySchema[] = [];
   for (const key of Object.keys(flat).sort()) {
     const raw = flat[key];
-    if (typeof raw !== "string") continue;
-    out.push({ key, raw, args: inferArgs(raw) });
+    if (raw === null) continue;
+    out.push({ key, raw, args: typeof raw === 'string' ? inferArgs(raw) : [] });
   }
   return out;
 }
@@ -119,11 +127,44 @@ export function renderMessagesDts(schemas: KeySchema[]): string {
 }
 
 function renderEntry(schema: KeySchema): string {
-  const parts = [`__raw: ${quoteString(schema.raw)}`];
+  const parts = [`__raw: ${renderRawType(schema.raw)}`];
   for (const arg of schema.args) {
     parts.push(`${quoteKey(arg.name)}: ${arg.tsType}`);
   }
   return `{ ${parts.join("; ")} }`;
+}
+
+/**
+ * Keep string messages as literals so the SDK can distinguish text keys.
+ * Structured values retain their JSON shape while their scalar contents are
+ * widened, giving callers useful tuple/object types without coupling types to
+ * the current copy.
+ */
+function renderRawType(value: TranslationValue): string {
+  if (typeof value === 'string') return quoteString(value);
+  if (typeof value === 'number') return 'number';
+  if (typeof value === 'boolean') return 'boolean';
+  return renderArrayType(value);
+}
+
+function renderArrayType(value: TranslationArray): string {
+  return `[${value.map((item) => renderArrayItemType(item)).join(', ')}]`;
+}
+
+function renderArrayItemType(value: TranslationArrayItem): string {
+  if (value === null) return 'null';
+  if (typeof value === 'string') return 'string';
+  if (typeof value === 'number') return 'number';
+  if (typeof value === 'boolean') return 'boolean';
+  if (Array.isArray(value)) return renderArrayType(value);
+  return renderObjectType(value);
+}
+
+function renderObjectType(value: TranslationArrayObject): string {
+  const fields = Object.entries(value).map(
+    ([key, item]) => `${quoteKey(key)}: ${renderArrayItemType(item)}`,
+  );
+  return `{ ${fields.join('; ')} }`;
 }
 
 const SAFE_IDENT = /^[A-Za-z_$][A-Za-z0-9_$]*$/;

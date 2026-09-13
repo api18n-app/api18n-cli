@@ -58,6 +58,24 @@ describe('inferSchemas', () => {
     expect(out[0]!.key).toBe('withVal');
   });
 
+  it('includes structured values without trying to parse ICU arguments', () => {
+    const out = inferSchemas({
+      enabled: true,
+      retries: 3,
+      steps: ['Create', { title: 'Invite', optional: false }],
+    });
+
+    expect(out).toEqual([
+      { key: 'enabled', raw: true, args: [] },
+      { key: 'retries', raw: 3, args: [] },
+      {
+        key: 'steps',
+        raw: ['Create', { title: 'Invite', optional: false }],
+        args: [],
+      },
+    ]);
+  });
+
   it('falls back to empty args for unparseable messages', () => {
     // Unclosed brace is malformed ICU MessageFormat.
     const out = inferSchemas({ broken: 'Hello {name' });
@@ -102,5 +120,30 @@ describe('renderMessagesDts', () => {
       { key: 'apos', raw: "It's fine", args: [] },
     ]);
     expect(out).toContain("__raw: 'It\\'s fine'");
+  });
+
+  it('emits widened scalar types for structured values', () => {
+    const out = renderMessagesDts([
+      { key: 'enabled', raw: true, args: [] },
+      { key: 'retries', raw: 3, args: [] },
+      {
+        key: 'steps',
+        raw: [
+          'Create',
+          {
+            title: 'Invite',
+            optional: false,
+            meta: { rank: 2, aliases: ['Team', null] },
+          },
+        ],
+        args: [],
+      },
+    ]);
+
+    expect(out).toContain('enabled: { __raw: boolean };');
+    expect(out).toContain('retries: { __raw: number };');
+    expect(out).toContain(
+      "steps: { __raw: [string, { title: string; optional: boolean; meta: { rank: number; aliases: [string, null] } }] };",
+    );
   });
 });

@@ -5,6 +5,7 @@ import { resolveToken } from '../credentials.js';
 import { withSpinner } from '../spinner.js';
 import { relativeOut, writeTypes } from '../typegen-runner.js';
 import type { TranslationDataset } from '../types.js';
+import { assertDatasetIsComplete } from '../dataset.js';
 
 export async function runTypes(): Promise<void> {
   const config = await loadConfig(process.cwd());
@@ -28,6 +29,7 @@ export async function runTypes(): Promise<void> {
   let dataset: TranslationDataset;
   try {
     dataset = await withSpinner('Fetching translations…', () => client.dataset());
+    assertDatasetIsComplete(dataset, 'type generation');
   } catch (err) {
     if (err instanceof ApiError) {
       console.error(kleur.red(`Couldn't fetch dataset (${err.status}): ${err.message}`));

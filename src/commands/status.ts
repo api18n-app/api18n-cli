@@ -7,6 +7,8 @@ import { buildLocalePath, flatten, readJsonFile } from '../files.js';
 import { withSpinner } from '../spinner.js';
 import { getExperimentalLanguageCodes } from '../language-stability.js';
 import type { ProposalSummary, TranslationDataset } from '../types.js';
+import { assertDatasetIsComplete } from '../dataset.js';
+import type { TranslationValues } from '../translation-values.js';
 
 export async function runStatus(): Promise<void> {
   const config = await loadConfig(process.cwd());
@@ -30,6 +32,7 @@ export async function runStatus(): Promise<void> {
     // (`prepare: false`), surfacing as 500. One extra round-trip beats a
     // broken command.
     server = await withSpinner('Fetching translations…', () => client.dataset());
+    assertDatasetIsComplete(server, 'status');
     pending = await withSpinner(
       'Checking pending proposals…',
       () => client.listProposals('pending'),
@@ -45,7 +48,11 @@ export async function runStatus(): Promise<void> {
 
   // Pending proposals first
   console.log();
-  const experimentalCodes = getExperimentalLanguageCodes(server.languages);
+  const includeSet = config.include ? new Set(config.include) : null;
+  const languages = includeSet
+    ? server.languages.filter((language) => includeSet.has(language.code))
+    : server.languages;
+  const experimentalCodes = getExperimentalLanguageCodes(languages);
   if (experimentalCodes.length > 0) {
     console.warn(
       kleur.yellow(
@@ -68,13 +75,15 @@ export async function runStatus(): Promise<void> {
   }
 
   // Local-vs-server drift
-  const localByKey = new Map<string, Record<string, string | null>>();
-  for (const lang of server.languages) {
+  const localByKey = new Map<string, TranslationValues>();
+  const loadedLanguageCodes: string[] = [];
+  for (const lang of languages) {
     // Each server language reads from its own {locale}.json file.
     const localCode = lang.code;
     const path = buildLocalePath(config.rootDir, config.locales, localCode);
     const content = readJsonFile(path);
     if (!content) continue;
+    loadedLanguageCodes.push(lang.code);
     const merged = flatten(content);
     for (const [key, value] of Object.entries(merged)) {
       let entry = localByKey.get(key);
@@ -85,7 +94,15 @@ export async function runStatus(): Promise<void> {
       entry[lang.code] = value;
     }
   }
-  const diff = computeTranslationDiff(server, localByKey);
+  if (loadedLanguageCodes.length === 0) {
+    console.log();
+    console.log(kleur.yellow('No local translation files found to compare.'));
+    console.log(kleur.gray('Run `api18n pull` first, or create the files manually.'));
+    return;
+  }
+  const diff = computeTranslationDiff(server, localByKey, {
+    languages: loadedLanguageCodes,
+  });
   const drift = diff.create.length + diff.update.length + diff.delete.length;
 
   console.log();
